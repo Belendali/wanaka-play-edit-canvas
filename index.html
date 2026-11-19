@@ -552,7 +552,7 @@ const game = { playing:false, over:false, timeLeft:120, placed:new Set(), carryi
 
 /* ═════════════ AI connection ═════════════ */
 let sampleFn = null, aiPref = "live", aiResolved = false;
-const aiReady = (async () => { try { if (window.claude && window.claude.use) sampleFn = await window.claude.use("sample"); } catch(e) { sampleFn = null; } aiResolved = true; paintBadge(); })();
+const aiReady = (async () => { await null; try { if (window.claude && window.claude.use) sampleFn = await window.claude.use("sample"); } catch(e) { sampleFn = null; } aiResolved = true; paintBadge(); })();
 const aiLive = () => !!sampleFn && aiPref === "live";
 function paintBadge(){
   const b = $("#aibadge"), t = b.querySelector("span"); b.classList.remove("live","off");
