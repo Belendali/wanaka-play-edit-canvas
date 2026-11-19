@@ -1,0 +1,1888 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bone Lake Canvas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Canvas version: the game is one big node on an infinite canvas. Versions are tabs on the node; reference images and 3D assets are generated in nodes around it. */
+:root{
+  --bg:#E9EBF0; --stage:#DCE0E7; --panel:#FFFFFF; --panel-2:#F4F5F8; --ink:#14161B; --muted:#626A7A; --line:#DDE1E8;
+  --accent:#2F5BFF; --accent-soft:#E6ECFF; --accent-ink:#FFFFFF;
+  --pin:#FF5A4E; --ok:#11A36C; --ok-soft:#E3F6EE; --warn:#C98500; --warn-soft:#FFF3D6; --run:#0E8FA8; --run-soft:#DFF4F8;
+  --glass:rgba(255,255,255,.94); --shadow:0 10px 30px rgba(20,22,27,.16); --bezel:#101215; --dot:rgba(20,22,27,.15); --edge:#9aa3b5;
+  --ui:"Poppins",ui-sans-serif,system-ui,-apple-system,"PingFang SC","Hiragino Sans GB",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0E1014; --stage:#15181E; --panel:#171A20; --panel-2:#1F232B; --ink:#ECEEF2; --muted:#9AA1AF; --line:#2B303A;
+  --accent:#6E8CFF; --accent-soft:#232C4D; --accent-ink:#0E1014;
+  --pin:#FF6F63; --ok:#3CCB8E; --ok-soft:#173329; --warn:#F2B53A; --warn-soft:#3A2F15; --run:#43C3DB; --run-soft:#15313A;
+  --glass:rgba(23,26,32,.94); --shadow:0 10px 30px rgba(0,0,0,.45); --bezel:#3a3f4a; --dot:rgba(255,255,255,.09); --edge:#4c5566; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1014; --stage:#15181E; --panel:#171A20; --panel-2:#1F232B; --ink:#ECEEF2; --muted:#9AA1AF; --line:#2B303A;
+  --accent:#6E8CFF; --accent-soft:#232C4D; --accent-ink:#0E1014;
+  --pin:#FF6F63; --ok:#3CCB8E; --ok-soft:#173329; --warn:#F2B53A; --warn-soft:#3A2F15; --run:#43C3DB; --run-soft:#15313A;
+  --glass:rgba(23,26,32,.94); --shadow:0 10px 30px rgba(0,0,0,.45); --bezel:#3a3f4a; --dot:rgba(255,255,255,.09); --edge:#4c5566; color-scheme:dark}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--ui);font-size:14px;overflow:hidden;display:flex;flex-direction:column}
+*{box-sizing:border-box}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:5px;padding:0 5px;color:var(--muted)}
+.card{background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.muted{color:var(--muted)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:9px 14px;font-weight:500;display:inline-flex;gap:8px;align-items:center;white-space:nowrap}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn:disabled{opacity:.45;cursor:default;filter:none}
+.btn.sm{padding:6px 12px;font-size:12.5px;border-radius:10px}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:99px;padding:5px 11px;font-size:12px;line-height:1.3;text-align:left}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.iconbtn{border:0;background:none;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--muted);flex:none;position:relative}
+.iconbtn:hover,.iconbtn.on{background:var(--panel-2);color:var(--ink)}
+.iconbtn .dot{position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--pin);border:2px solid var(--bg)}
+
+/* top bar */
+.top{height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:12px}
+.tl,.tr{display:flex;align-items:center;gap:8px;min-width:0}
+.ttl{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+.ttl b{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ttl span{font-size:11.5px;color:var(--muted)}
+.seg{display:flex;background:var(--panel-2);border-radius:12px;padding:3px;border:1px solid var(--line)}
+.seg button{border:0;background:none;padding:6px 10px;border-radius:9px;display:flex;gap:7px;align-items:center;font-weight:500;color:var(--muted);white-space:nowrap}
+.seg button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.seg button.on.cm{background:var(--pin);color:#fff}
+.seg button.on.cm kbd{color:#fff;border-color:rgba(255,255,255,.5)}
+.menu{position:fixed;z-index:20;padding:6px;min-width:190px}
+.menu button{display:block;width:100%;text-align:left;border:0;background:none;padding:9px 12px;border-radius:9px}
+.menu button:hover{background:var(--panel-2)}
+.pubpop{position:fixed;z-index:20;width:300px;padding:14px;right:12px;top:56px}
+.pubpop img{width:100%;border-radius:10px;display:block;margin:10px 0;aspect-ratio:16/10;object-fit:cover;background:var(--panel-2)}
+.pubpop input{width:100%;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--panel)}
+
+/* main */
+.main{flex:1;min-height:0;display:flex;gap:12px;padding:0 12px 12px;position:relative}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#frame.commenting #gl{cursor:crosshair}
+#pins{position:absolute;inset:0;pointer-events:none}
+.pin{position:absolute;width:26px;height:26px;margin:-26px 0 0 -2px;border-radius:13px 13px 13px 2px;background:var(--pin);color:#fff;font-size:12px;font-weight:600;display:grid;place-items:center;pointer-events:auto;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.25);border:2px solid #fff;transition:background .3s}
+.pin.running{background:var(--run)} .pin.done{background:var(--ok)} .pin.question,.pin.unsupported{background:var(--warn)}
+
+.hud{position:absolute;left:50%;top:14px;transform:translateX(-50%);display:flex;gap:8px;pointer-events:none;flex-wrap:wrap;justify-content:center;width:max-content;max-width:calc(100% - 24px)}
+.hpill{background:rgba(14,16,20,.62);color:#fff;border-radius:99px;padding:7px 14px;font-weight:600;font-variant-numeric:tabular-nums;display:flex;gap:8px;align-items:center;backdrop-filter:blur(6px);white-space:nowrap;font-size:13px}
+.hpill .dots{display:flex;gap:4px}
+.hpill .dots i{width:9px;height:9px;border-radius:50%;border:1.5px solid rgba(255,255,255,.7)}
+.hpill .dots i.on{background:#ffd27a;border-color:#ffd27a}
+.hpill.carry{background:rgba(201,133,0,.88);font-weight:500}
+.hpill.paused{background:rgba(255,90,78,.88)}
+.hint{position:absolute;left:50%;top:56px;transform:translateX(-50%);background:rgba(14,16,20,.7);color:#fff;font-size:12.5px;padding:6px 12px;border-radius:99px;white-space:nowrap;pointer-events:none;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto}
+.result{align-items:flex-end;padding-bottom:24px;pointer-events:none}
+.result .card{padding:18px 24px;text-align:center;width:min(360px,100%);pointer-events:auto}
+.result .big{font-size:26px;font-weight:700;margin:4px 0}
+.result p{color:var(--muted);margin:0 0 16px;line-height:1.5}
+
+/* start card */
+#ov-start{z-index:9;background:rgba(10,12,16,.18)}
+.startcard{width:min(620px,100%);padding:26px}
+h1{font-size:26px;line-height:1.2;margin:6px 0 4px;font-weight:600;text-wrap:balance}
+.lede{color:var(--muted);margin:0 0 14px;line-height:1.55}
+.bigin{width:100%;min-height:118px;resize:vertical;border:1px solid var(--line);border-radius:14px;padding:13px 14px;background:var(--panel);line-height:1.55}
+.tag{font-size:11px;font-weight:600;background:var(--accent-soft);color:var(--accent);border-radius:6px;padding:2px 7px}
+
+/* docked side: rail + one panel. Opening a panel narrows the game frame instead of covering it */
+.side{display:flex;gap:12px;flex:none;min-height:0;position:relative}
+.rail{width:62px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;border-radius:18px;align-self:flex-start}
+.rbtn{position:relative;width:52px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 7px;border:0;background:none;border-radius:12px;color:var(--muted);font-size:10.5px;font-weight:500;line-height:1}
+.rbtn:hover{background:var(--panel-2);color:var(--ink)}
+.rbtn.on{background:var(--accent-soft);color:var(--accent)}
+.railsep{width:30px;height:1px;background:var(--line);margin:4px 0}
+.rcount{position:absolute;top:2px;right:4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--accent);color:var(--accent-ink);font-size:10px;font-weight:600;font-style:normal;display:grid;place-items:center;border:2px solid var(--panel)}
+.rcount.bump{animation:bpop .6s}
+@keyframes bpop{35%{transform:scale(1.4)}}
+.spanel{width:320px;flex:none;display:flex;flex-direction:column;overflow:hidden;border-radius:18px;min-height:0}
+.phead{display:flex;align-items:center;gap:4px;padding:9px 8px 9px 14px;border-bottom:1px solid var(--line)}
+.phead .back{margin-left:-8px}
+.phead .pt{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.phead .pt b{font-weight:600;font-size:14px}
+.phead .pt span{font-size:11.5px;color:var(--muted)}
+.pbody{flex:1;overflow:auto;padding:12px 14px 16px}
+.pbody .sect{margin-top:16px}
+.pfoot{border-top:1px solid var(--line);padding:10px 12px}
+.small{font-size:12px;line-height:1.5}
+.agrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.asset{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:8px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11.5px}
+.asset:hover{border-color:var(--accent);color:var(--accent)}
+.asset svg{width:34px;height:34px}
+.finput{display:flex;gap:6px}
+.finput input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--panel);font-size:13px}
+.empty{color:var(--muted);font-size:12.5px;line-height:1.55;padding:2px}
+.clist{display:flex;flex-direction:column;gap:6px}
+.pcard{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:8px 8px 8px 10px;margin-bottom:6px}
+.clist .pcard{margin:0}
+button.pcard:hover{border-color:var(--accent)}
+.pic{width:34px;height:34px;border-radius:10px;background:var(--panel-2);display:grid;place-items:center;flex:none;color:var(--ink)}
+.pic svg{width:19px;height:19px}
+.pic.big{width:54px;height:54px;border-radius:14px}
+.pic.big svg{width:28px;height:28px}
+.pic.wana{background:var(--accent-soft);color:var(--accent)}
+.pt2{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3}
+.pt2 b{font-weight:600;font-size:13px}
+.pt2 span{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inuse{font-size:10.5px;font-weight:600;color:var(--ok);background:var(--ok-soft);border-radius:6px;padding:2px 7px;white-space:nowrap}
+.addtag{font-size:10.5px;font-weight:600;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 7px;white-space:nowrap}
+.dhead{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.desc{margin:0;line-height:1.5;font-size:13px}
+.att{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:12px;padding:4px 4px 4px 10px;margin-bottom:6px;background:var(--panel)}
+.att .ctl{flex:1;min-width:0}
+.wtool{border:1px solid var(--line);border-radius:14px;background:var(--panel);margin-bottom:8px;overflow:hidden}
+.wtool.flash{animation:fl 1.4s}
+.wth{display:flex;gap:10px;align-items:center;width:100%;border:0;background:none;text-align:left;padding:9px 10px}
+.wth:hover{background:var(--panel-2)}
+.wtt{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3}
+.wtt b{font-weight:600;font-size:13px;overflow-wrap:anywhere}
+.wtt span{font-size:11.5px;color:var(--muted)}
+.chev{color:var(--muted);transition:transform .2s;font-size:18px;line-height:1;padding:0 4px}
+.wtool.open .chev{transform:rotate(90deg)}
+.wtb{padding:4px 12px 8px;border-top:1px solid var(--line)}
+.wtb pre{margin:8px 0 4px;font-family:var(--mono);font-size:11px;line-height:1.55;white-space:pre;overflow:auto;background:var(--panel-2);border-radius:10px;padding:10px;max-height:300px}
+.from{font-size:11.5px;color:var(--muted);margin:8px 0 2px;line-height:1.45}
+.wtf{display:flex;gap:4px;padding:8px 8px 8px 10px;border-top:1px solid var(--line);align-items:center}
+.wtf input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:12.5px;background:var(--panel)}
+.wtf .iconbtn{width:32px;height:32px}
+
+/* bottom bar */
+.dock{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;width:clamp(320px,calc(100% - 640px),600px);z-index:8}
+.bar{display:flex;gap:6px;padding:6px;align-items:center;border-radius:16px;width:100%}
+.strip{flex:1;min-width:0;border:0;background:none;border-radius:10px;padding:7px 10px;display:flex;gap:8px;align-items:center;text-align:left;font-size:13px;white-space:nowrap;overflow:hidden}
+.strip:hover,.strip.on{background:var(--panel-2)}
+.strip > span:last-child{overflow:hidden;text-overflow:ellipsis}
+.strip .chips{display:flex;gap:3px}
+.strip .chips i{font-style:normal;width:20px;height:20px;border-radius:7px;background:var(--pin);color:#fff;font-size:11px;font-weight:600;display:grid;place-items:center}
+.strip .chips i.g{background:var(--ink);color:var(--panel)}
+.sp{width:16px;height:16px;border-radius:50%;border:2.5px solid var(--run);border-top-color:transparent;animation:spin .8s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.notespop{width:min(440px,100%);max-height:min(52vh,460px);overflow:auto;padding:12px 14px}
+.sect{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:2px 0 8px;display:flex;justify-content:space-between;align-items:center}
+.item{border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:8px;background:var(--panel)}
+.item.flash{animation:fl 1.2s}
+@keyframes fl{0%,40%{box-shadow:0 0 0 3px var(--accent)}}
+.item .ih{display:flex;gap:8px;align-items:center;font-size:12px}
+.num{width:20px;height:20px;border-radius:7px;background:var(--pin);color:#fff;font-weight:600;display:grid;place-items:center;font-size:11px;flex:none}
+.num.g{background:var(--ink);color:var(--panel)}
+.item .target{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st{font-size:11px;font-weight:600;border-radius:6px;padding:2px 7px;white-space:nowrap}
+.st.draft{background:var(--panel-2);color:var(--muted)} .st.running{background:var(--run-soft);color:var(--run)} .st.done{background:var(--ok-soft);color:var(--ok)} .st.question,.st.unsupported{background:var(--warn-soft);color:var(--warn)}
+.item .it{margin-top:6px;line-height:1.5;overflow-wrap:anywhere}
+.item .res{margin-top:8px;font-size:12.5px;color:var(--muted);line-height:1.5;border-top:1px dashed var(--line);padding-top:8px}
+.ch{margin:4px 0 0;padding-left:16px;font-family:var(--mono);font-size:11px;overflow-wrap:anywhere;color:var(--muted)}
+.item .x{border:0;background:none;color:var(--muted);padding:2px 4px;font-size:16px;line-height:1}
+.hist{font-size:12.5px;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+.hist .hs{color:var(--muted);font-size:11.5px}
+
+.hovertag{position:absolute;pointer-events:none;background:var(--pin);color:#fff;font-size:12px;font-weight:500;padding:4px 9px;border-radius:8px;white-space:nowrap;transform:translate(14px,14px);z-index:9}
+.pop{position:absolute;width:300px;padding:14px;z-index:10}
+.pop .tg{display:inline-flex;gap:6px;align-items:center;font-size:12px;font-weight:600;color:var(--pin);margin-bottom:8px}
+.pop .tg i{width:8px;height:8px;border-radius:50%;background:var(--pin)}
+.pop textarea{width:100%;min-height:64px;border:1px solid var(--line);border-radius:10px;padding:9px 10px;resize:none;background:var(--panel);line-height:1.45}
+.pop .row{margin-top:8px}
+.pop .acts{display:flex;justify-content:flex-end;gap:6px;margin-top:10px}
+.coach{position:absolute;left:14px;top:14px;width:min(310px,calc(100% - 84px));padding:14px 16px;font-size:13px;line-height:1.5;z-index:6}
+.coach b{font-weight:600}
+.coach .row{margin-top:10px}
+#toasts{position:absolute;right:14px;top:14px;display:flex;flex-direction:column;gap:8px;z-index:9;pointer-events:none;width:min(330px,calc(100% - 28px))}
+.toast{padding:10px 14px;font-size:13px;line-height:1.45;pointer-events:auto;animation:tin .25s ease-out}
+.toast .row{margin-top:6px}
+@keyframes tin{from{opacity:0;transform:translateY(6px)}}
+
+/* sliders inside panels */
+.ctl{padding:6px 0}
+.ctl .cl{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px;gap:8px}
+.ctl .cl > span:last-child{font-family:var(--mono);color:var(--muted);font-size:11.5px}
+.ctl .mac{font-size:10px;color:var(--run);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-left:6px}
+.ctl input[type=range]{width:100%;accent-color:var(--accent)}
+.ctl input[type=color]{width:100%;height:28px;border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:2px}
+
+/* chat */
+.chat{width:360px;flex:none;display:flex;flex-direction:column;overflow:hidden;border-radius:18px}
+.chead{display:flex;align-items:center;gap:8px;padding:10px 8px 10px 14px;border-bottom:1px solid var(--line)}
+.chead b{flex:1;font-weight:600}
+.aibadge{font-size:11.5px;border:1px solid var(--line);border-radius:99px;padding:4px 9px;display:flex;gap:6px;align-items:center;background:var(--panel);white-space:nowrap}
+.aibadge i{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.aibadge.live i{background:var(--ok)} .aibadge.off i{background:var(--warn)}
+#msgs{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+.msg{display:flex;gap:8px;align-items:flex-start;max-width:100%}
+.msg.user{justify-content:flex-end}
+.msg .bub{line-height:1.5;font-size:13.5px;min-width:0;overflow-wrap:anywhere}
+.msg.user .bub{background:var(--accent);color:var(--accent-ink);padding:9px 12px;border-radius:14px 14px 4px 14px;max-width:85%}
+.msg.user .bub ol{margin:4px 0 0;padding-left:18px}
+.msg.ai .bub{flex:1}
+.wana{width:26px;height:26px;border-radius:50%;background:var(--accent);flex:none;position:relative}
+.wana::before,.wana::after{content:"";position:absolute;top:9px;width:4px;height:7px;border-radius:3px;background:var(--accent-ink)}
+.wana::before{left:7px}.wana::after{right:7px}
+.dots{display:inline-flex;gap:4px;padding:6px 0}
+.dots i{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:bob 1s infinite ease-in-out}
+.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes bob{0%,100%{transform:translateY(0);opacity:.5}50%{transform:translateY(-4px);opacity:1}}
+.plan{background:var(--panel-2);border-radius:14px;padding:12px 14px;margin-top:10px}
+.plan h3{margin:4px 0 2px;font-size:17px;font-weight:600}
+.plan p{margin:0 0 8px;color:var(--muted)}
+.plan dl{margin:0;display:grid;grid-template-columns:78px 1fr;gap:6px 10px;font-size:12.5px}
+.plan dt{color:var(--muted);font-weight:500}
+.plan dd{margin:0}
+.plan ol{margin:0;padding-left:16px}
+.steps{margin-top:6px}
+.bl{display:flex;gap:10px;align-items:center;font-size:13px;padding:3px 0;color:var(--muted)}
+.bl .s{width:15px;height:15px;border-radius:50%;border:2px solid var(--line);flex:none}
+.bl.run{color:var(--ink)} .bl.run .s{border-color:var(--run);border-top-color:transparent;animation:spin .7s linear infinite}
+.bl.ok{color:var(--ink)} .bl.ok .s{background:var(--ok);border-color:var(--ok)}
+.rlist{margin:6px 0 0;padding-left:18px}
+.rlist li{margin-bottom:4px}
+.composer{border-top:1px solid var(--line);padding:10px;display:flex;gap:6px}
+.composer input{flex:1;min-width:0;border:1px solid var(--line);border-radius:12px;padding:9px 12px;background:var(--panel)}
+
+/* infinite canvas */
+.board{flex:1;min-width:0;position:relative;border-radius:18px;overflow:hidden;background-color:var(--stage);background-image:radial-gradient(circle,var(--dot) 1.1px,transparent 1.5px);background-size:22px 22px;cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none}
+.board.panning,.board.space,.board.space *{cursor:grabbing!important}
+.world{position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0}
+.edges{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}
+.edges path{fill:none;stroke:var(--edge);stroke-width:2.2}
+.edges path.tmp{stroke:var(--accent);stroke-dasharray:7 6}
+.edges text{font-family:var(--ui);font-size:12px;font-weight:600;fill:var(--muted);paint-order:stroke;stroke:var(--stage);stroke-width:5px;stroke-linejoin:round}
+.node{position:absolute;cursor:default}
+.node.flash{animation:fl 1.4s}
+.node.droptarget{outline:3px solid var(--accent);outline-offset:4px}
+.gnode{background:var(--panel);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);padding:0 10px 10px}
+.ghead{height:52px;display:flex;align-items:center;gap:10px;padding:0 2px 0 6px;cursor:grab}
+.ghead.dragging,.nhead.dragging{cursor:grabbing}
+.gtitle{font-weight:600;font-size:15px;white-space:nowrap}
+.vtabs{display:flex;gap:4px;align-items:center;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none;padding:2px}
+.vtabs::-webkit-scrollbar{display:none}
+.vtab{border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:4px 11px;font-size:12.5px;font-weight:600;display:inline-flex;gap:6px;align-items:center;white-space:nowrap;color:var(--muted);flex:none}
+.vtab:hover{border-color:var(--ink);color:var(--ink)}
+.vtab.on{background:var(--ink);border-color:var(--ink);color:var(--panel)}
+.vtab.ghost{border-style:dashed;color:var(--run);cursor:default}
+.vtab .sp{width:11px;height:11px;border-width:2px}
+.gmeta{font-size:12.5px;color:var(--muted);white-space:nowrap;max-width:340px;overflow:hidden;text-overflow:ellipsis}
+.gmeta b{color:var(--ink);font-weight:600}
+#frame{position:relative;width:1120px;height:640px;overflow:hidden;background:#9fc6d6;border-radius:14px;cursor:auto}
+.gnode.phone #frame{width:376px;height:668px;border-radius:30px;border:8px solid var(--bezel)}
+.port{position:absolute;top:50%;width:16px;height:16px;margin-top:-8px;border-radius:50%;background:var(--panel);border:2.5px solid var(--edge);z-index:2}
+.port.in{left:-9px;pointer-events:none}
+.port.out{right:-9px;cursor:crosshair}
+.port.out:hover{border-color:var(--accent);background:var(--accent-soft);transform:scale(1.3)}
+.gen{width:300px;background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+.gen.running{border-color:var(--run)}
+.nhead{display:flex;align-items:center;gap:8px;padding:7px 6px 7px 12px;border-bottom:1px solid var(--line);cursor:grab}
+.nhead .iconbtn{width:28px;height:28px}
+.ntitle{flex:1;min-width:0;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nkind{font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:2px 7px;white-space:nowrap}
+.gen.k-asset .nkind{color:var(--ok);background:var(--ok-soft)}
+.nbody{padding:10px 12px 12px}
+.nprompt{width:100%;resize:none;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--panel-2);font-size:12.5px;line-height:1.45;user-select:text;-webkit-user-select:text;cursor:text}
+.nprompt:disabled{opacity:.7}
+.nref{font-size:11.5px;color:var(--muted);margin-top:6px}
+.nres{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+.nres.one{grid-template-columns:1fr}
+.nimg{border:2px solid transparent;border-radius:11px;padding:0;overflow:hidden;background:var(--panel-2);aspect-ratio:3/2;display:block;width:100%}
+.nres.one .nimg{aspect-ratio:4/3;cursor:default}
+.nimg img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.nimg.on{border-color:var(--accent)}
+.nprog{height:6px;border-radius:3px;background:var(--panel-2);overflow:hidden;margin-top:10px}
+.nprog i{display:block;height:100%;width:0;background:var(--run);transition:width .2s}
+.nacts{display:flex;gap:6px;margin-top:10px;align-items:center}
+.nnote,.nhint,.nmeta{font-size:11.5px;color:var(--muted);line-height:1.4}
+.nnote{flex:1;min-width:0}
+.nmeta{margin-top:6px}
+.nhint{margin-top:8px}
+.zbar{position:absolute;left:14px;bottom:14px;z-index:8;display:flex;align-items:center;gap:2px;padding:4px;border-radius:14px}
+.zbar .iconbtn{width:32px;height:32px}
+.zv{border:0;background:none;font-size:12px;font-variant-numeric:tabular-nums;min-width:46px;color:var(--muted);padding:6px 2px;border-radius:8px}
+.zv:hover{background:var(--panel-2);color:var(--ink)}
+.zsep{width:1px;height:20px;background:var(--line);margin:0 4px}
+.addmenu{position:absolute;z-index:14;padding:6px;width:252px}
+.addmenu button{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:10px}
+.addmenu button:hover{background:var(--panel-2)}
+.addmenu .pt2 span{white-space:normal}
+.vcard{position:absolute;z-index:12;width:270px;padding:10px;pointer-events:none;font-size:12.5px;line-height:1.45}
+.vcard img{width:100%;border-radius:9px;display:block;margin-bottom:8px;background:var(--panel-2)}
+.vcard ul{margin:6px 0 0;padding-left:16px;color:var(--muted)}
+.vsaved{font-size:11.5px;font-weight:600;background:var(--ink);color:var(--panel);border-radius:7px;padding:3px 8px}
+@media (max-width:1180px){ .zbar{bottom:72px} .dock{width:min(600px,calc(100% - 24px))} }
+
+@media (max-width:900px){
+  .chat{position:absolute;right:12px;top:0;bottom:12px;z-index:15;width:min(360px,calc(100% - 24px))}
+}
+@media (max-width:760px){
+  .spanel{position:absolute;left:74px;top:0;bottom:0;z-index:16;width:min(320px,calc(100vw - 98px))}
+}
+@media (max-width:640px){
+  .seg button .lbl{display:none}
+  .ttl span{display:none}
+  .coach{left:14px;top:64px;width:calc(100% - 28px)}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="tl">
+    <button class="iconbtn" id="homeBtn" title="Home" aria-label="Home"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2.5 8.5L9 3l6.5 5.5V15a1 1 0 01-1 1h-3.5v-4.5h-4V16H3.5a1 1 0 01-1-1z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
+    <div class="ttl"><b id="gameTitle">Untitled game</b><span id="saveTxt">Draft</span></div>
+  </div>
+  <div class="tr">
+    <div class="seg" id="pv" role="group" aria-label="Preview size">
+      <button data-pv="pc" class="on" title="Preview on desktop"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 14h5M8 11.5V14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span class="lbl">PC</span></button>
+      <button data-pv="mobile" title="Preview on phone"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="1.5" width="8" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7 12.2h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span class="lbl">Mobile</span></button>
+    </div>
+    <button class="btn primary sm" id="pubBtn">Publish</button>
+    <button class="iconbtn on" id="chatBtn" title="Hide chat" aria-label="Toggle chat"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="2" y="3" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M11 3v12" stroke="currentColor" stroke-width="1.5"/></svg><i class="dot" id="chatDot" hidden></i></button>
+  </div>
+</header>
+
+<main class="main">
+  <aside class="side" id="side" hidden>
+    <nav class="card rail" aria-label="Editor panels">
+      <button class="rbtn" data-panel="assets" title="Assets: ready-made models" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 6.5v7M6.5 10h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Assets</button>
+      <button class="rbtn" data-panel="tools" title="Tools: ready-made parts from Wanaka" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="14" cy="6" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 11.5l3 5.5H3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><rect x="11" y="11.5" width="6" height="5.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Tools</button>
+      <span class="railsep"></span>
+      <button class="rbtn" data-panel="wana" title="Made by Wana: tools and assets written for this game" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 16.5l9-9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M14.5 2.2l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" fill="currentColor"/><path d="M6.5 3l.45 1.05L8 4.5l-1.05.45L6.5 6l-.45-1.05L5 4.5l1.05-.45z" fill="currentColor"/><path d="M16 11l.4.95.95.4-.95.4L16 13.7l-.4-.95-.95-.4.95-.4z" fill="currentColor"/></svg>By Wana<i class="rcount" id="wanaCount" hidden></i></button>
+    </nav>
+    <div class="card spanel" id="spanel" hidden></div>
+  </aside>
+  <section id="wrap" class="board" aria-label="Canvas">
+    <div class="world" id="world">
+      <svg class="edges" id="edges" aria-hidden="true"></svg>
+      <div class="node gnode" id="gnode">
+        <div class="ghead" id="ghead" title="Drag to move the game">
+          <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="color:var(--accent);flex:none"><path d="M3.5 2l10 6-10 6z" fill="currentColor"/></svg>
+          <b class="gtitle" id="gTitle">Untitled game</b>
+          <div class="vtabs" id="vtabs" role="group" aria-label="Versions"></div>
+          <span class="gmeta" id="gmeta">Not built yet</span>
+          <button class="iconbtn" id="gFocus" title="Fit the game to the screen" aria-label="Fit the game to the screen"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2.5 6.5v-4h4M11.5 2.5h4v4M15.5 11.5v4h-4M6.5 15.5h-4v-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        </div>
+        <div id="frame">
+          <canvas id="gl"></canvas>
+          <div id="pins"></div>
+          <div class="hud" id="hud" hidden></div>
+          <div class="hint" id="hint" hidden></div>
+          <div class="overlay result" id="ov-result" hidden></div>
+        </div>
+        <span class="port in"></span>
+      </div>
+      <div id="nodes"></div>
+    </div>
+
+    <div class="overlay" id="ov-start">
+      <div class="card startcard">
+        <div class="row" style="justify-content:space-between"><span class="eyebrow">New game</span><span class="tag">Demo prompt</span></div>
+        <h1>What do you want to make?</h1>
+        <p class="lede">This demo uses one fixed idea so the scene is the same every time. Press Start to see Wana turn it into a plan, build it, and hand it to you to play and edit.</p>
+        <textarea class="bigin" id="idea"></textarea>
+        <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn primary" id="startBtn">Start</button></div>
+      </div>
+    </div>
+
+    <div class="dock" id="dock" hidden>
+      <div class="card notespop" id="notesPop" hidden></div>
+      <div class="card bar">
+        <div class="seg">
+          <button id="mPlay" class="on" title="Play (P)" aria-label="Play"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 2l9 5-9 5z" fill="currentColor"/></svg></button>
+          <button id="mComment" class="cm" title="Comment (C)" aria-label="Comment"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5A1.5 1.5 0 013.5 2h9A1.5 1.5 0 0114 3.5v6a1.5 1.5 0 01-1.5 1.5H7l-3.5 3v-3h0A1.5 1.5 0 012 9.5z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><kbd>C</kbd></button>
+        </div>
+        <button class="strip" id="strip"></button>
+        <button class="btn sm primary" id="sendBatch" disabled>Send</button>
+      </div>
+    </div>
+
+    <div class="hovertag" id="hovertag" hidden></div>
+    <div class="card pop" id="pop" hidden>
+      <div class="tg"><i></i><span id="popTarget"></span></div>
+      <textarea id="popText" placeholder="What should change here?"></textarea>
+      <div class="row" id="popChips"></div>
+      <div class="acts"><button class="btn sm" id="popCancel">Cancel</button><button class="btn sm primary" id="popAdd">Add note</button></div>
+    </div>
+    <div class="card coach" id="coach" hidden></div>
+    <div class="card zbar" id="zbar" hidden>
+      <button class="btn sm" id="addNodeBtn" title="Add a node. You can also double-click the canvas.">+ Node</button><span class="zsep"></span>
+      <button class="iconbtn" id="zOut" aria-label="Zoom out" title="Zoom out (Cmd/Ctrl + scroll)"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+      <button class="zv" id="zv" title="Zoom to 100%">100%</button>
+      <button class="iconbtn" id="zIn" aria-label="Zoom in" title="Zoom in"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h9M8 3.5v9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+      <button class="iconbtn" id="zGame" aria-label="Fit the game" title="Fit the game"><svg width="17" height="17" viewBox="0 0 18 18" aria-hidden="true"><path d="M2.5 6.5v-4h4M11.5 2.5h4v4M15.5 11.5v4h-4M6.5 15.5h-4v-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="iconbtn" id="zAll" aria-label="See the whole canvas" title="See the whole canvas"><svg width="17" height="17" viewBox="0 0 18 18" aria-hidden="true"><rect x="2.5" y="4" width="5" height="4" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="2.5" y="10" width="5" height="4" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="9.5" y="4" width="6" height="10" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>
+    </div>
+    <div class="card addmenu" id="addMenu" hidden>
+      <button data-add="image"><span class="pic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="13" rx="2"/><circle cx="7" cy="8" r="1.5"/><path d="M3 15l4.5-4.5 3 3 2.5-2.5 4.5 4.5"/></svg></span><span class="pt2"><b>Reference image</b><span>A look, place or moment to steer the game</span></span></button>
+      <button data-add="asset"><span class="pic"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l6.5 3.7v7.6L10 17.5l-6.5-3.7V6.2z"/><path d="M3.5 6.2L10 10l6.5-3.8M10 10v7.5"/></svg></span><span class="pt2"><b>3D asset</b><span>A model you can place in the game</span></span></button>
+    </div>
+    <div class="card vcard" id="vcard" hidden></div>
+    <div id="toasts"></div>
+  </section>
+
+  <aside class="card chat" id="chat">
+    <div class="chead"><div class="wana"></div><b>Wana</b><button class="aibadge" id="aibadge"><i></i><span>Connecting…</span></button><button class="iconbtn" id="chatX" aria-label="Hide chat"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button></div>
+    <div id="msgs"><div class="empty" id="chatEmpty">Your conversation with Wana shows up here: the plan, the build, and what changed after each batch of notes.</div></div>
+    <form class="composer" id="chatForm"><input id="chatIn" autocomplete="off" placeholder="Message Wana…" aria-label="Message Wana"><button class="btn sm primary" type="submit">Send</button></form>
+  </aside>
+</main>
+
+<div class="card menu" id="homeMenu" hidden style="left:12px;top:52px"><button id="startOver">Start the demo over</button><button id="menuClose">Back to the game</button></div>
+<div class="card pubpop" id="pubPop" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const isZh = s => /[一-鿿]/.test(s || "");
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const lerp = (a,b,t) => a + (b-a)*t;
+const clone = o => JSON.parse(JSON.stringify(o));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const cap = s => String(s||"").charAt(0).toUpperCase() + String(s||"").slice(1);
+const D2R = Math.PI/180;
+let uid = 0; const nid = p => p + (++uid);
+const fmt = v => typeof v === "number" ? (Math.abs(v) >= 10 ? v.toFixed(0) : v.toFixed(2)) : String(v);
+const HEX = /^#[0-9a-f]{6}$/i;
+const DOTS = `<span class="dots"><i></i><i></i><i></i></span>`;
+
+/* ═════════════ The fixed demo idea and its plan ═════════════ */
+const FIXED_PROMPT = "A misty lake at sunset. A huge white dinosaur skeleton lies half-sunk in the middle of the lake, and some of its bones are missing. You play a small explorer in a red jacket who finds the scattered bones on the shore and carries them back, one at a time, to put the skeleton together again. Put all 6 bones back before the 2-minute timer runs out and the dinosaur comes back to life. Warm low-poly look, soft fog, glowing bones.";
+const PLAN = {title:"Bone Lake", pitch:"Carry the scattered bones back to the giant skeleton in the lake and bring the dinosaur back to life.",
+  rows:[["Player","A small explorer in a red jacket"],["Goal","Put all 6 missing bones back on the skeleton"],
+    ["Loop",["Spot a glowing bone on the shore","Pick it up and wade into the lake","Drop it on the skeleton: the missing part fills in"]],
+    ["World","Misty lake at sunset, pines and rocks around it, a huge white skeleton half-sunk in the middle"],["Look","Warm low-poly, soft fog, bones glow"],
+    ["Win","All 6 bones placed: the dinosaur stands up and comes alive"],["Lose","The 2:00 timer runs out"],["Controls","WASD or click to move, drag to look around"],
+    ["Objects","Dinosaur skeleton (missing parts show as ghosts) · 6 bones: skull, neck, ribcage, front legs, hind legs, tail · Explorer · Lake"]]};
+const BONES = [{part:"Skull",label:"Skull",a:200,r:17},{part:"Neck",label:"Neck",a:248,r:21},{part:"Ribs",label:"Ribcage",a:300,r:16},
+  {part:"Front legs",label:"Front legs",a:20,r:19},{part:"Hind legs",label:"Hind legs",a:145,r:20},{part:"Tail",label:"Tail",a:340,r:23}];
+const BONE_POS = BONES.map(b => ({x:Math.cos(b.a*D2R)*b.r, z:Math.sin(b.a*D2R)*b.r}));
+
+/* ═════════════ Scene spec: the JSON the AI edits ═════════════ */
+const SKEL = {
+  spineArch:[-.6,1,.2,"Spine arch"], neckLift:[-.6,1.4,.35,"Neck lift"], neckCurve:[-1,1,.45,"Neck curve"], skullTilt:[-.8,.8,0,"Skull tilt"],
+  jawOpen:[0,1,.2,"Jaw open"], ribClose:[0,1,.55,"Ribcage closure"], ribSize:[.5,1.6,1,"Rib size"], tailCurl:[-1.5,1.5,.6,"Tail curl"],
+  tailSide:[-1,1,.35,"Tail sweep"], tailLength:[.5,1.8,1,"Tail length"], legSplay:[0,1,.55,"Leg splay"], glow:[0,1,0,"Glow"]
+};
+const skelDefaults = () => Object.fromEntries(Object.entries(SKEL).map(([k,v]) => [k, v[2]]));
+const RANGE = {x:[-70,70], z:[-70,70], y:[-6,30], rot:[-180,180], scale:[.1,6], sx:[.05,40], sy:[.05,40], sz:[.05,40], rx:[-180,180], ry:[-180,180], rz:[-180,180],
+  count:[0,60], speed:[2,16], size:[.3,4], timeOfDay:[0,1], fog:[0,1], radius:[0,20], timeLimit:[30,300], rmin:[0,70], rmax:[1,80],
+  pickupRadius:[.8,4], dropRadius:[3,14], distance:[6,40], height:[3,20], fireflyCount:[5,120]};
+const INT = new Set(["count","timeLimit","fireflyCount"]);
+const DECOR = ["tree","pine","rock","crystal","house","bush"], SHAPES = ["box","sphere","cylinder","cone","torus","gem","rock"];
+const P = (name,shape,x,y,z,sx,sy,sz,color,r) => Object.assign({name, shape, x,y,z, sx,sy,sz, rx:0,ry:0,rz:0, color}, r || {});
+const CAMP = [P("log","cylinder",0,.15,0,.22,1.5,.22,"#6b4a2f",{rz:90}), P("log","cylinder",0,.18,0,.22,1.5,.22,"#7a5536",{rz:90,ry:60}), P("log","cylinder",0,.21,0,.22,1.5,.22,"#6b4a2f",{rz:90,ry:120}),
+  P("flame","cone",0,.75,0,.75,1.1,.75,"#ff8a2a"), P("flame core","cone",0,.62,0,.42,.8,.42,"#ffd34d"),
+  ...[0,1,2,3,4,5,6].map(i => P("stone","rock",Math.cos(i/7*6.283)*.95,.1,Math.sin(i/7*6.283)*.95,.38,.28,.38,"#8a8f96"))];
+const TENT = [P("canvas","cone",0,1,0,2.6,2,2.6,"#d9a441"), P("door","box",0,.55,1.02,.6,1.05,.05,"#5c3a22",{rx:-24}), P("pole","cylinder",0,2.15,0,.08,.5,.08,"#5c3a22"), P("flag","box",.2,2.35,0,.35,.22,.03,"#e0453a")];
+
+function num(v, d, lo, hi){ v = Number(v); if (!isFinite(v)) v = d; return lo === undefined ? v : clamp(v, lo, hi); }
+function col(v, d){ return HEX.test(String(v)) ? String(v).toLowerCase() : d; }
+function sanitizeProp(p, used){
+  p = p && typeof p === "object" ? p : {};
+  let id = String(p.id || "").replace(/[^\w-]/g, "").slice(0,24) || nid("p"); while (used && used.has(id)) id = id + "x"; used && used.add(id);
+  const type = ["parts","skeleton",...DECOR].includes(p.type) ? p.type : (Array.isArray(p.parts) ? "parts" : "rock");
+  const out = {id, name:String(p.name || cap(type)).slice(0,40), role: p.role === "decor" ? "decor" : p.role === "hero" ? "hero" : (type === "parts" || type === "skeleton" ? "hero" : "decor"), type,
+    x:num(p.x,0,-70,70), z:num(p.z,0,-70,70), y:num(p.y,0,-6,30), rot:num(p.rot,0,-180,180), scale:num(p.scale,1,.1,6), color:col(p.color, type === "skeleton" ? "#ece4cf" : "#9aa3ad")};
+  if (type === "parts") out.parts = (Array.isArray(p.parts) ? p.parts : []).slice(0,40).map(q => ({name:String(q?.name || "").slice(0,30), shape:SHAPES.includes(q?.shape) ? q.shape : "box",
+    x:num(q?.x,0), y:num(q?.y,.5), z:num(q?.z,0), sx:num(q?.sx,1,.05,40), sy:num(q?.sy,1,.05,40), sz:num(q?.sz,1,.05,40), rx:num(q?.rx,0), ry:num(q?.ry,0), rz:num(q?.rz,0), color:col(q?.color, out.color)}));
+  if (type === "skeleton"){ out.params = skelDefaults(); for (const k in SKEL) if (p.params && isFinite(p.params[k])) out.params[k] = clamp(+p.params[k], SKEL[k][0], SKEL[k][1]); }
+  if (DECOR.includes(type)){ out.count = Math.round(num(p.count, 1, 0, 60)); out.rmin = num(p.rmin, 8, 0, 70); out.rmax = num(p.rmax, 28, 1, 80); if (out.rmax < out.rmin + 1) out.rmax = out.rmin + 1; }
+  return out;
+}
+function baseSpec(){
+  return {title:"Bone Lake",
+    world:{sky:"#bfe3f2", ground:"#6f8a48", timeOfDay:.42, fog:.3, size:30, water:{color:"#3f8fa8", radius:11, x:0, z:0}},
+    player:{name:"Explorer", look:"humanoid", color:"#e0453a", accent:"#c9a66b", speed:6.5, size:1},
+    props:[sanitizeProp({id:"skel", name:"Dinosaur skeleton", role:"hero", type:"skeleton", x:0, z:0, y:-.15, rot:30, scale:1.4, color:"#ece4cf"}),
+      sanitizeProp({id:"pines", name:"Pines", type:"pine", color:"#3f7a45", count:14, rmin:14, rmax:30}),
+      sanitizeProp({id:"rocks", name:"Rocks", type:"rock", color:"#8a8f96", count:8, rmin:12, rmax:28}),
+      sanitizeProp({id:"camp", name:"Campfire", role:"decor", type:"parts", x:5, z:20, scale:1, color:"#6b4a2f", parts:CAMP})],
+    bones:{name:"Bones", color:"#f3ead6", size:1, beacon:"#ffd27a"},
+    rules:{timeLimit:120, pickupRadius:1.7, dropRadius:8.5},
+    camera:{distance:15, height:8.5},
+    fx:{fireflies:false, fireflyCount:40, fireflyColor:"#fff2a8", trail:false, trailColor:"#ffd27a"},
+    behaviors:[]};
+}
+function targetObj(key){
+  const s = S.spec; if (!key) return null;
+  if (key.startsWith("prop:")) return s.props.find(p => p.id === key.slice(5)) || null;
+  if (key === "water") return s.world.water;
+  return s[key] || null;
+}
+function getPath(key, path){ let o = targetObj(key); if (!o) return undefined; for (const seg of String(path).split(".")){ if (o == null) return undefined; o = o[seg]; } return o; }
+function setPath(key, path, v){ let o = targetObj(key); if (!o) return; const segs = String(path).split("."); for (let i=0;i<segs.length-1;i++){ o = o[segs[i]]; if (o == null) return; } o[segs[segs.length-1]] = v; }
+function rangeFor(key, path){
+  const last = String(path).split(".").pop();
+  if (String(path).startsWith("params.") && SKEL[last]) return [SKEL[last][0], SKEL[last][1]];
+  if (key === "world" && last === "size") return [20,60];
+  if (key === "player" && last === "size") return [.4,3];
+  if (key === "bones" && last === "size") return [.5,2.5];
+  if (key === "behaviors") return [.1,4];
+  return RANGE[last] || [-100,100];
+}
+function clampVal(key, path, v){
+  const cur = getPath(key, path); if (cur === undefined || cur === null || typeof cur === "object") return null;
+  if (typeof cur === "boolean") return v === true || v === "true" || v === 1;
+  if (typeof cur === "string") return HEX.test(cur) && HEX.test(String(v)) ? String(v).toLowerCase() : null;
+  let x = Number(v); if (!isFinite(x)) return null; const [lo,hi] = rangeFor(key, path); x = clamp(x, lo, hi);
+  if (INT.has(String(path).split(".").pop())) x = Math.round(x); return x;
+}
+function labelFor(key, part){
+  const nm = key.startsWith("prop:") ? (targetObj(key)?.name || "Object") : ({world:"World", water:"Lake", player:S.spec.player.name, bones:"Bones", rules:"Rules", camera:"Camera", fx:"Effects", behaviors:"Behaviors", global:"Whole game"}[key] || key);
+  return part && part !== nm ? `${nm} · ${part}` : nm;
+}
+function paramLabel(key, path){ const last = String(path).split(".").pop(); if (SKEL[last]) return SKEL[last][3]; const m = String(path).match(/^parts\.(\d+)\.(\w+)$/); if (m){ const pt = targetObj(key)?.parts?.[+m[1]]; return `${pt?.name || "part " + m[1]} ${m[2]}`; } return last; }
+const skel = () => S.spec.props.find(p => p.type === "skeleton");
+
+/* ═════════════ App state ═════════════ */
+const S = { phase:"idea", spec:baseSpec(), batch:[], history:[], tools:[], mode:"play", tweens:[], dirty:new Set(), pinN:0, chatOpen:true, preview:"pc", panel:null, catSel:null, attach:null, made:[], gpos:{x:0, y:0}, versions:[], cur:null, pendingV:0, nodes:[], edges:[] };
+const game = { playing:false, over:false, timeLeft:120, placed:new Set(), carrying:null, carriedObj:null, flying:null, reviving:false, alive:false, pre:null, t0:0 };
+
+/* ═════════════ AI connection ═════════════ */
+let sampleFn = null, aiPref = "live", aiResolved = false;
+const aiReady = (async () => { try { if (window.claude && window.claude.use) sampleFn = await window.claude.use("sample"); } catch(e) { sampleFn = null; } aiResolved = true; paintBadge(); })();
+const aiLive = () => !!sampleFn && aiPref === "live";
+function paintBadge(){
+  const b = $("#aibadge"), t = b.querySelector("span"); b.classList.remove("live","off");
+  if (!aiResolved){ t.textContent = "Connecting…"; return; }
+  if (aiLive()){ b.classList.add("live"); t.textContent = "Claude live"; b.title = "Claude reads your notes and edits the scene. Click to switch to offline rules."; }
+  else { b.classList.add("off"); t.textContent = "Offline rules"; b.title = sampleFn ? "Click to switch back to Claude." : "Claude isn't available here, so a small keyword engine stands in."; }
+}
+$("#aibadge").onclick = () => { if (!sampleFn) return; aiPref = aiPref === "live" ? "rules" : "live"; paintBadge(); toast(aiLive() ? "Switched to <b>Claude</b>." : "Switched to <b>offline rules</b>: fast and keyword based."); };
+async function askJSON(prompt, tier){
+  await aiReady; if (!aiLive()) throw {code:"offline"};
+  try { return await sampleFn.json(prompt, {modelTier:tier, cache:false}); }
+  catch(e){ if (["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"].includes(e && e.code)){ sampleFn = null; paintBadge(); } throw e; }
+}
+
+/* ═════════════ Three.js ═════════════ */
+const wrap = $("#wrap"), frameEl = $("#frame"), canvas = $("#gl"), gnode = $("#gnode");
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+const scene = new THREE.Scene(); scene.fog = new THREE.Fog(0xbfe3f2, 40, 140);
+const camera = new THREE.PerspectiveCamera(50, 1, .1, 400);
+const hemi = new THREE.HemisphereLight(0xdff2ff, 0x5d6b3a, .85); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffffff, .85); sun.position.set(20, 30, 12); scene.add(sun);
+function layoutFrame(){
+  gnode.classList.toggle("phone", S.preview === "mobile");
+  const w = frameEl.clientWidth, h = frameEl.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix();
+}
+new ResizeObserver(layoutFrame).observe(wrap); layoutFrame();
+const V = (x,y,z) => new THREE.Vector3(x,y,z);
+const ROOT = {}; ["world","water","player","bones","props"].forEach(k => { ROOT[k] = new THREE.Group(); scene.add(ROOT[k]); });
+const propGroups = new Map();
+function anchorGroup(key){ return key.startsWith("prop:") ? propGroups.get(key.slice(5)) : (ROOT[key] || ROOT.world); }
+function mat(color, extra){ return new THREE.MeshStandardMaterial(Object.assign({color, roughness:.8, flatShading:true}, extra || {})); }
+function tag(m, key, part, idx){ m.userData.key = key; m.userData.part = part; if (idx !== undefined) m.userData.idx = idx; return m; }
+function tagAll(g, key, part){ g.traverse(o => { if (o.isMesh && !o.userData.key) tag(o, key, part); }); return g; }
+function dispose(g){ g.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose?.(); }); while (g.children.length) g.remove(g.children[0]); }
+function mulberry(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function seedOf(str){ let h = 7; for (const ch of String(str)) h = (h*31 + ch.charCodeAt(0)) | 0; return h; }
+
+const starGeo = new THREE.BufferGeometry(); { const p=[], r=mulberry(3); for (let i=0;i<500;i++){ const a=r()*Math.PI*2, e=.15+r()*1.3, R=180; p.push(Math.cos(a)*Math.cos(e)*R, Math.sin(e)*R, Math.sin(a)*Math.cos(e)*R); } starGeo.setAttribute("position", new THREE.Float32BufferAttribute(p,3)); }
+const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color:0xffffff, size:1.1, transparent:true, opacity:0, fog:false})); scene.add(stars);
+
+/* world & water */
+let water = null, waterBase = null;
+function buildWorld(){
+  dispose(ROOT.world); const w = S.spec.world, R = w.size*1.8, wr = Math.min(w.water.radius, R - 1);
+  const shape = new THREE.Shape(); shape.absarc(0, 0, R, 0, Math.PI*2, false);
+  if (wr > .5){ const hole = new THREE.Path(); hole.absarc(w.water.x, -w.water.z, wr, 0, Math.PI*2, true); shape.holes.push(hole); }
+  const ground = new THREE.Mesh(new THREE.ShapeGeometry(shape, 64), mat(w.ground, {roughness:1})); ground.rotation.x = -Math.PI/2; ROOT.world.add(tag(ground, "world", "Ground"));
+  const hillC = new THREE.Color(w.ground).lerp(new THREE.Color(w.sky), .55).getHex(), rnd = mulberry(5);
+  for (let i=0;i<14;i++){ const a = i/14*Math.PI*2 + rnd()*.2, r = R + 12 + rnd()*14, h = 10 + rnd()*20; const m = new THREE.Mesh(new THREE.ConeGeometry(9 + rnd()*9, h, 6), mat(hillC, {roughness:1})); m.position.set(Math.cos(a)*r, h/2 - 1, Math.sin(a)*r); ROOT.world.add(tag(m, "world", "Hills")); }
+  buildWater();
+}
+function buildWater(){
+  dispose(ROOT.water); water = null; const w = S.spec.world, R = w.size*1.8, wr = Math.min(w.water.radius, R - 1); if (wr <= .5) return;
+  const rings = 12, segs = 56, pos = [0,0,0], idx = [];
+  for (let r=1;r<=rings;r++) for (let s=0;s<segs;s++){ const a = s/segs*Math.PI*2, rr = wr*r/rings; pos.push(Math.cos(a)*rr, 0, Math.sin(a)*rr); }
+  for (let s=0;s<segs;s++) idx.push(0, 1+(s+1)%segs, 1+s);
+  for (let r=1;r<rings;r++) for (let s=0;s<segs;s++){ const a=1+(r-1)*segs+s, b=1+(r-1)*segs+(s+1)%segs, c=1+r*segs+s, d=1+r*segs+(s+1)%segs; idx.push(a,b,c, b,d,c); }
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals();
+  water = new THREE.Mesh(g, mat(w.water.color, {transparent:true, opacity:.75, roughness:.2, metalness:.15})); water.position.y = .05; waterBase = Float32Array.from(pos);
+  ROOT.water.add(tag(water, "water", "Water"));
+  const bedC = new THREE.Color(w.water.color).multiplyScalar(.45).getHex();
+  const bed = new THREE.Mesh(new THREE.CircleGeometry(wr, 48), mat(bedC, {roughness:1})); bed.rotation.x = -Math.PI/2; bed.position.y = -1; ROOT.water.add(tag(bed, "water", "Lake bed"));
+  const wall = new THREE.Mesh(new THREE.CylinderGeometry(wr, wr*.97, 1.02, 56, 1, true), mat(bedC, {roughness:1, side:THREE.DoubleSide})); wall.position.y = -.5; ROOT.water.add(tag(wall, "water", "Shore"));
+  ROOT.water.position.set(w.water.x, 0, w.water.z);
+}
+function inWater(x, z){ const w = S.spec.world.water; return w.radius > .5 && Math.hypot(x - w.x, z - w.z) < w.radius; }
+function startPos(){ return V(0, 0, S.spec.world.size*.75); }
+function propRadius(q){ if (q.type === "skeleton") return 5*q.scale; if (q.type === "parts") return q.scale*Math.max(1.5, ...q.parts.map(t => Math.hypot(t.x, t.z) + Math.max(t.sx, t.sz)/2)); return 2*q.scale; }
+
+/* props */
+function partMesh(pt){
+  let g; switch (pt.shape){
+    case "sphere": g = new THREE.SphereGeometry(.5,14,10); break; case "cylinder": g = new THREE.CylinderGeometry(.5,.5,1,16); break;
+    case "cone": g = new THREE.ConeGeometry(.5,1,16); break; case "torus": g = new THREE.TorusGeometry(.4,.1,8,24); break;
+    case "gem": g = new THREE.OctahedronGeometry(.5,0); break; case "rock": g = new THREE.DodecahedronGeometry(.5,0); break; default: g = new THREE.BoxGeometry(1,1,1); }
+  const m = new THREE.Mesh(g, mat(pt.color)); m.position.set(pt.x, pt.y, pt.z); m.scale.set(Math.max(.01,pt.sx), Math.max(.01,pt.sy), Math.max(.01,pt.sz)); m.rotation.set(pt.rx*D2R, pt.ry*D2R, pt.rz*D2R); return m;
+}
+function decorPiece(type, color, rnd){
+  const g = new THREE.Group(), s = .8 + rnd()*.5;
+  if (type === "tree"){ const t = new THREE.Mesh(new THREE.CylinderGeometry(.2,.28,1.4,6), mat("#6b4a2f")); t.position.y = .7; const c = new THREE.Mesh(new THREE.IcosahedronGeometry(1.2,0), mat(color)); c.position.y = 2.1; g.add(t,c); }
+  else if (type === "pine"){ const t = new THREE.Mesh(new THREE.CylinderGeometry(.18,.25,1.2,6), mat("#6b4a2f")); t.position.y = .6; const a = new THREE.Mesh(new THREE.ConeGeometry(1.3,2.4,7), mat(color)); a.position.y = 2.1; const b = new THREE.Mesh(new THREE.ConeGeometry(.95,1.8,7), mat(color)); b.position.y = 3.1; g.add(t,a,b); }
+  else if (type === "rock"){ const r = new THREE.Mesh(new THREE.DodecahedronGeometry(.6 + rnd()*.8,0), mat(color)); r.position.y = .3; r.rotation.set(rnd()*3, rnd()*3, 0); g.add(r); }
+  else if (type === "crystal"){ for (let i=0;i<3;i++){ const c = new THREE.Mesh(new THREE.OctahedronGeometry(.45,0), mat(color, {emissive:color, emissiveIntensity:.35})); c.scale.set(1, 2.4 - i*.5, 1); c.position.set((i-1)*.45, .9 - i*.15, (rnd()-.5)*.4); c.rotation.z = (i-1)*.35; g.add(c); } }
+  else if (type === "house"){ const b = new THREE.Mesh(new THREE.BoxGeometry(2,1.6,2), mat("#efe6d6")); b.position.y = .8; const r = new THREE.Mesh(new THREE.ConeGeometry(1.7,1.3,4), mat(color)); r.position.y = 2.25; r.rotation.y = Math.PI/4; const d = new THREE.Mesh(new THREE.BoxGeometry(.5,.9,.05), mat("#6b4a2f")); d.position.set(0,.45,1.01); g.add(b,r,d); }
+  else { for (let i=0;i<3;i++){ const b = new THREE.Mesh(new THREE.SphereGeometry(.55 - i*.1, 10, 8), mat(color)); b.position.set((i-1)*.5, .4, (rnd()-.5)*.3); g.add(b); } }
+  g.scale.setScalar(s); return g;
+}
+function buildProp(p){
+  const old = propGroups.get(p.id), wasVisible = old ? old.visible : true; if (old){ dispose(old); ROOT.props.remove(old); }
+  const g = new THREE.Group(), key = "prop:" + p.id; propGroups.set(p.id, g); ROOT.props.add(g); g.visible = wasVisible;
+  if (p.type === "parts"){ p.parts.forEach((pt,i) => g.add(tag(partMesh(pt), key, pt.name || p.name, i))); g.position.set(p.x, p.y, p.z); g.rotation.y = p.rot*D2R; g.scale.setScalar(p.scale); }
+  else if (p.type === "skeleton"){ buildSkeleton(g, p.params, p.color, key); g.position.set(p.x, p.y, p.z); g.rotation.y = p.rot*D2R; g.scale.setScalar(p.scale); }
+  else {
+    const rnd = mulberry(seedOf(p.id)), n = Math.max(0, p.count || 1), start = startPos();
+    if (n <= 1){ g.add(tagAll(decorPiece(p.type, p.color, rnd), key, p.name)); g.position.set(p.x, p.y, p.z); g.rotation.y = p.rot*D2R; g.scale.setScalar(p.scale*1.6); }
+    else { let placed = 0, tries = 0;
+      while (placed < n && tries < n*25){ tries++; const a = rnd()*Math.PI*2, r = p.rmin + rnd()*(p.rmax - p.rmin), x = Math.cos(a)*r, z = Math.sin(a)*r;
+        if (Math.abs(x) < 6 && z > start.z - 6 && z < start.z + 12) continue; if (inWater(x, z) && p.type !== "rock") continue;
+        if (BONE_POS.some(b => Math.hypot(b.x - x, b.z - z) < 3)) continue;
+        if (S.spec.props.some(q => q.id !== p.id && (q.role === "hero" || (q.count || 1) <= 1) && Math.hypot(q.x - x, q.z - z) < propRadius(q) + 1.5)) continue;
+        const piece = decorPiece(p.type, p.color, rnd); piece.position.set(x, 0, z); piece.rotation.y = rnd()*6; piece.scale.multiplyScalar(p.scale); g.add(tagAll(piece, key, p.name)); placed++; } }
+  }
+}
+function buildProps(){ for (const [id, g] of propGroups){ if (!S.spec.props.some(p => p.id === id)){ dispose(g); ROOT.props.remove(g); propGroups.delete(id); } } S.spec.props.forEach(buildProp); }
+
+/* the skeleton: spine always there; missing parts render as ghosts until a bone is returned */
+const skelOn = part => part === "Spine" || game.placed.has(part === "Jaw" ? "Skull" : part);
+function boneBetween(a,b,r,m){ const len = a.distanceTo(b); const x = new THREE.Mesh(new THREE.CylinderGeometry(r*.8, r, Math.max(.01,len), 6), m); x.position.copy(a).add(b).multiplyScalar(.5); x.quaternion.setFromUnitVectors(V(0,1,0), b.clone().sub(a).normalize()); return x; }
+function knob(p,r,m){ const x = new THREE.Mesh(new THREE.IcosahedronGeometry(r,0), m); x.position.copy(p); return x; }
+function buildSkeleton(g, p, color, key){
+  const bm = mat(color, {roughness:.75, emissive:new THREE.Color(color).multiplyScalar(p.glow*.6)}), gm = new THREE.MeshStandardMaterial({color:0xcfe6ff, emissive:0x5f86b0, transparent:true, opacity:.34, depthWrite:false, roughness:1});
+  const dark = mat("#2a2622"), M = part => skelOn(part) ? bm : gm, T = (m, part) => { g.add(tag(m, key, part)); return m; };
+  const spine = []; for (let i=0;i<=10;i++){ const x = -2.2 + i*.44; spine.push(V(x, 1 + p.spineArch*(1-(x/2.2)**2)*.9, 0)); }
+  spine.forEach((pt,i) => { T(knob(pt,.2,bm),"Spine"); T(boneBetween(pt, pt.clone().add(V(0,.32+.1*Math.sin(i/10*Math.PI),0)), .05, bm),"Spine"); if (i) T(boneBetween(spine[i-1], pt, .1, bm),"Spine"); });
+  let pos = spine[10].clone(), ang = p.neckLift*.9; const neck = [pos.clone()];
+  for (let i=0;i<7;i++){ ang += p.neckCurve*.16; pos = pos.clone().add(V(Math.cos(ang)*.38, Math.sin(ang)*.38, 0)); neck.push(pos); }
+  neck.forEach((pt,i) => { if (i){ T(knob(pt,.16-.01*i,M("Neck")),"Neck"); T(boneBetween(neck[i-1], pt, .08, M("Neck")),"Neck"); } });
+  const skull = new THREE.Group(); skull.position.copy(neck[7]); skull.rotation.z = ang*.5 - .25 + p.skullTilt; g.add(skull);
+  const add = (par, m, part) => { par.add(tag(m, key, part)); return m; }, sm = M("Skull");
+  const cran = add(skull, new THREE.Mesh(new THREE.BoxGeometry(.9,.42,.46), sm), "Skull"); cran.position.set(.45,.05,0);
+  const sn = add(skull, new THREE.Mesh(new THREE.CylinderGeometry(.1,.22,.7,6), sm), "Skull"); sn.rotation.z = -Math.PI/2; sn.position.set(1.2,.02,0);
+  [-1,1].forEach(s => { const e = add(skull, new THREE.Mesh(new THREE.SphereGeometry(.09,8,6), skelOn("Skull") ? dark : gm), "Skull"); e.position.set(.38,.14,.21*s); });
+  const jaw = new THREE.Group(); jaw.position.set(.08,-.16,0); jaw.rotation.z = -p.jawOpen*.8; skull.add(jaw);
+  const jb = add(jaw, new THREE.Mesh(new THREE.BoxGeometry(1.35,.1,.34), sm), "Skull"); jb.position.set(.68,0,0);
+  pos = spine[0].clone(); let yawT = Math.PI, pitch = -.12; const tail = [pos.clone()], tn = Math.round(12*p.tailLength);
+  for (let i=0;i<tn;i++){ yawT += p.tailSide*.07 + p.tailCurl*.014*i; pitch -= .012; const st = .38*(1 - i/(tn*1.5)); pos = pos.clone().add(V(Math.cos(pitch)*Math.cos(yawT)*st, Math.sin(pitch)*st, Math.cos(pitch)*Math.sin(yawT)*st)); tail.push(pos); }
+  tail.forEach((pt,i) => { if (i){ const r = .17*(1 - i/(tn+3)); T(knob(pt,Math.max(.04,r),M("Tail")),"Tail"); T(boneBetween(tail[i-1], pt, Math.max(.03,r*.55), M("Tail")),"Tail"); } });
+  for (let i=2;i<=8;i++){ const pt = spine[i], s = p.ribSize*(.55 + .6*Math.sin(Math.PI*(i-1)/8)), cl = p.ribClose;
+    [-1,1].forEach(side => { const a = pt.clone().add(V(0,-.05,.12*side)), c = V(pt.x, pt.y - .15*s, side*s), e = V(pt.x+.1, pt.y - lerp(.25,1.15,cl)*s, side*lerp(1.35,.14,cl)*s);
+      T(new THREE.Mesh(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(a,c,e), 10, .05, 5), M("Ribs")),"Ribs"); }); }
+  [[8,1,"Front legs"],[2,-1,"Hind legs"]].forEach(([si,fb,part]) => [-1,1].forEach(side => { const hip = spine[si].clone().add(V(0,-.1,.25*side)), sp = p.legSplay, m = M(part);
+    const knee = hip.clone().add(V(.3*fb, -.75 + sp*.3, side*(.15+sp*.8))), foot = knee.clone().add(V(.35*fb, -.6*(1-sp*.55), side*sp*.55));
+    T(boneBetween(hip,knee,.09,m),part); T(boneBetween(knee,foot,.07,m),part); T(knob(knee,.11,m),part); }));
+}
+
+/* player */
+let legs = [];
+function buildPlayer(){
+  const carried = game.carriedObj; if (carried) ROOT.player.remove(carried);
+  dispose(ROOT.player); legs = []; const Pl = S.spec.player, body = new THREE.Group(); body.name = "body"; ROOT.player.add(body);
+  const c = mat(Pl.color), a = mat(Pl.accent), skin = mat("#f2c9a0"), add = (m, x, y, z) => { m.position.set(x,y,z); body.add(m); return m; };
+  if (Pl.look === "animal"){
+    add(new THREE.Mesh(new THREE.BoxGeometry(.65,.6,1.1), c), 0,.75,0); const h = add(new THREE.Mesh(new THREE.BoxGeometry(.55,.5,.5), c), 0,1.15,.62);
+    [-1,1].forEach(s => { const e = new THREE.Mesh(new THREE.ConeGeometry(.12,.25,4), a); e.position.set(.17*s,.35,0); h.add(e); });
+    [[-.2,.4],[.2,.4],[-.2,-.4],[.2,-.4]].forEach(([x,z]) => legs.push(add(new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,.5,6), c), x,.25,z)));
+  } else if (Pl.look === "robot"){
+    add(new THREE.Mesh(new THREE.BoxGeometry(.75,.8,.5), c), 0,1.05,0); add(new THREE.Mesh(new THREE.BoxGeometry(.5,.42,.45), a), 0,1.68,0);
+    add(new THREE.Mesh(new THREE.BoxGeometry(.36,.1,.05), mat("#7ff3ff", {emissive:"#7ff3ff", emissiveIntensity:.8})), 0,1.7,.23);
+    [-.2,.2].forEach(x => legs.push(add(new THREE.Mesh(new THREE.BoxGeometry(.18,.65,.2), a), x,.33,0)));
+  } else {
+    add(new THREE.Mesh(new THREE.CylinderGeometry(.32,.38,.75,8), c), 0,.95,0); add(new THREE.Mesh(new THREE.SphereGeometry(.27,10,8), skin), 0,1.55,0);
+    add(new THREE.Mesh(new THREE.CylinderGeometry(.42,.42,.05,12), a), 0,1.72,0); add(new THREE.Mesh(new THREE.CylinderGeometry(.2,.24,.22,10), a), 0,1.84,0);
+    add(new THREE.Mesh(new THREE.BoxGeometry(.4,.45,.22), a), 0,1,-.3);
+    [-.13,.13].forEach(x => legs.push(add(new THREE.Mesh(new THREE.CylinderGeometry(.1,.1,.55,6), a), x,.3,0)));
+  }
+  tagAll(ROOT.player, "player", Pl.name); ROOT.player.scale.setScalar(Pl.size);
+  if (carried) ROOT.player.add(carried);
+}
+
+/* bones on the shore */
+let pickups = [];
+function pickupMesh(i){
+  const c = S.spec.bones.color, m = mat(c, {roughness:.6, emissive:c, emissiveIntensity:.18}), g = new THREE.Group();
+  const add = (geo,x,y,z,rx,ry,rz) => { const o = new THREE.Mesh(geo, m); o.position.set(x,y,z); o.rotation.set(rx||0, ry||0, rz||0); g.add(o); return o; };
+  const part = BONES[i].part;
+  if (part === "Skull"){ add(new THREE.BoxGeometry(.8,.42,.5),0,.1,0); add(new THREE.CylinderGeometry(.12,.24,.7,6),.65,.05,0,0,0,-Math.PI/2); [-1,1].forEach(s => { const e = new THREE.Mesh(new THREE.SphereGeometry(.08,6,5), mat("#2a2622")); e.position.set(.2,.2,.26*s); g.add(e); }); }
+  else if (part === "Neck"){ for (let k=0;k<3;k++) add(new THREE.IcosahedronGeometry(.22,0),(k-1)*.42,0,0); add(new THREE.CylinderGeometry(.08,.08,1,6),0,0,0,0,0,Math.PI/2); }
+  else if (part === "Ribs"){ for (let k=0;k<3;k++) add(new THREE.TorusGeometry(.45,.06,6,14,Math.PI),(k-1)*.3,0,0,0,Math.PI/2,0); }
+  else if (part === "Tail"){ for (let k=0;k<5;k++) add(new THREE.IcosahedronGeometry(.22-k*.03,0),k*.32-.64,0,0); add(new THREE.CylinderGeometry(.04,.08,1.4,6),0,0,0,0,0,Math.PI/2); }
+  else { const len = part === "Hind legs" ? 1.5 : 1.2; add(new THREE.CylinderGeometry(.1,.1,len,8),0,0,0,0,0,Math.PI/2); [-1,1].forEach(s => [-1,1].forEach(t => add(new THREE.SphereGeometry(.16,10,8),len/2*s,0,.11*t))); }
+  return g;
+}
+function spawnBones(){
+  dispose(ROOT.bones); pickups = []; const B = S.spec.bones;
+  BONES.forEach((b,i) => {
+    if (game.placed.has(b.part) || game.carrying === i || game.flying?.i === i) return;
+    const g = new THREE.Group(), m = pickupMesh(i); m.scale.setScalar(B.size); m.position.y = .4; g.add(m);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(.9,1.15,32), new THREE.MeshBasicMaterial({color:B.beacon, transparent:true, opacity:.65, side:THREE.DoubleSide, depthWrite:false})); ring.rotation.x = -Math.PI/2; ring.position.y = .05; g.add(ring);
+    tagAll(g, "bones", b.label + " bone");
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(.3,.6,9,14,1,true), new THREE.MeshBasicMaterial({color:B.beacon, transparent:true, opacity:.18, depthWrite:false, side:THREE.DoubleSide})); beam.position.y = 4.5; g.add(beam);
+    g.position.set(BONE_POS[i].x, 0, BONE_POS[i].z); ROOT.bones.add(g); pickups.push({i, g, m, beam, ring, active:true});
+  });
+}
+
+/* ripple rings on the lake */
+const ripples = [];
+function ripple(x, z, big){ const m = new THREE.Mesh(new THREE.RingGeometry(.85,1,48), new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:.7, side:THREE.DoubleSide, depthWrite:false})); m.rotation.x = -Math.PI/2; m.position.set(x,.15,z); scene.add(m); ripples.push({m, t0:performance.now(), max:big ? 14 : 6, dur:big ? 2200 : 1200}); }
+
+/* rebuild whatever changed */
+function handleDirty(){
+  if (!S.dirty.size) return; const d = S.dirty; S.dirty = new Set();
+  if (d.has("world") || d.has("water")){ buildWorld(); buildProps(); }
+  else if (d.has("props")) buildProps();
+  else for (const k of d) if (k.startsWith("prop:")){ const p = targetObj(k); if (p) buildProp(p); }
+  if (d.has("player")) buildPlayer();
+  if (d.has("bones")) spawnBones();
+  if (d.has("fx")) buildFx();
+  refreshPickables(); if (hiKey){ const k = hiKey; hiKey = null; highlight(k); }
+}
+const markAll = () => ["world","props","player","bones","fx"].forEach(k => S.dirty.add(k));
+let pickables = [];
+function refreshPickables(){ pickables = []; scene.traverse(o => { if (o.isMesh && o.userData.key) pickables.push(o); }); }
+
+/* sky */
+const tmpC = new THREE.Color(), SUNSET = new THREE.Color("#f0a87c"), NIGHT = new THREE.Color("#141c38");
+const SUNC = [new THREE.Color("#fffaf0"), new THREE.Color("#ffb070"), new THREE.Color("#8fa6ff")];
+function updateSky(){
+  const w = S.spec.world, t = w.timeOfDay, day = new THREE.Color(w.sky);
+  if (t < .5) tmpC.copy(day).lerp(SUNSET, t*2); else tmpC.copy(SUNSET).lerp(NIGHT, (t-.5)*2);
+  scene.background = tmpC.clone(); scene.fog.color.copy(tmpC); scene.fog.near = lerp(50, 6, w.fog); scene.fog.far = lerp(170, 34, w.fog);
+  if (t < .5) sun.color.copy(SUNC[0]).lerp(SUNC[1], t*2); else sun.color.copy(SUNC[1]).lerp(SUNC[2], (t-.5)*2);
+  sun.intensity = lerp(.9, .35, Math.max(0,(t-.4)/.6)); hemi.intensity = lerp(.9, .35, t); sun.position.set(20, lerp(30, 8, clamp(t*2,0,1)), 12);
+  stars.material.opacity = clamp((t-.55)/.35, 0, 1);
+}
+
+/* ═════════════ Game loop ═════════════ */
+const keys = {};
+let camYaw = 0, idleA = 0, clock = performance.now();
+const lookT = V(0,1,0);
+function startRound(){
+  const sk = skel(); if (game.pre && sk){ sk.params = clone(game.pre.params); sk.y = game.pre.y; } game.pre = null; S.tweens = [];
+  if (game.carriedObj){ ROOT.player.remove(game.carriedObj); dispose(game.carriedObj); game.carriedObj = null; }
+  if (game.flying){ scene.remove(game.flying.obj); dispose(game.flying.obj); game.flying = null; }
+  game.placed.clear(); game.carrying = null; game.reviving = false; game.alive = false; game.over = false; game.playing = true; game.timeLeft = S.spec.rules.timeLimit; game.t0 = performance.now();
+  ROOT.player.position.copy(startPos()); camYaw = 0; if (sk) S.dirty.add("prop:" + sk.id); S.dirty.add("bones");
+  $("#ov-result").hidden = true; paintHud();
+}
+function paused(){ return S.mode === "comment" || !!S.attach || !$("#pop").hidden; }
+function frame(now){
+  const dt = Math.min(.05, (now - clock)/1000); clock = now; const tt = now/1000;
+  updateTweens(now); handleDirty(); updateSky();
+  if (water){ const arr = water.geometry.attributes.position.array; for (let i=0;i<arr.length;i+=3){ const x = waterBase[i], z = waterBase[i+2]; arr[i+1] = (Math.sin(x*.7 + tt*1.6) + Math.cos(z*.6 + tt*1.3))*.05; } water.geometry.attributes.position.needsUpdate = true; water.geometry.computeVertexNormals(); }
+  pickups.forEach((pk,k) => { pk.m.rotation.y += dt*1.2; pk.m.position.y = .4 + Math.sin(tt*2 + k)*.12; pk.beam.material.opacity = .13 + Math.sin(tt*3 + k)*.06; });
+  if (game.carriedObj){ game.carriedObj.rotation.y += dt*2; }
+  for (let i = ripples.length - 1; i >= 0; i--){ const r = ripples[i], k = (now - r.t0)/r.dur; if (k >= 1){ scene.remove(r.m); r.m.geometry.dispose(); r.m.material.dispose(); ripples.splice(i,1); continue; } r.m.scale.setScalar(1 + k*r.max); r.m.material.opacity = (1-k)*.7; }
+  if (game.flying) stepFlying(now);
+  const live = S.phase === "play" && game.playing && !game.over && !paused();
+  if (live) stepPlayer(dt, tt);
+  const sk = skel(), sg = sk && propGroups.get(sk.id);
+  if (game.alive && sg){ sg.position.y = sk.y + Math.sin(tt*1.4)*.12; sg.rotation.y = sk.rot*D2R + Math.sin(tt*.5)*.2; }
+  applyBehaviors(tt); stepFx(dt, tt);
+  if (S.phase === "play"){
+    const p = ROOT.player.position, s = S.spec.player.size, k = 1 - Math.pow(.002, dt);
+    if ((game.reviving || game.alive) && sk){ let dx = p.x - sk.x, dz = p.z - sk.z; const d = Math.hypot(dx,dz) || 1; dx /= d; dz /= d;
+      camera.position.lerp(V(sk.x + dx*24, 10, sk.z + dz*24), 1 - Math.pow(.05, dt)); lookT.lerp(V(sk.x, 3, sk.z), k); }
+    else { const C = S.spec.camera; camera.position.lerp(V(p.x + Math.sin(camYaw)*C.distance, p.y + C.height*(.7+.3*s), p.z + Math.cos(camYaw)*C.distance), k); lookT.lerp(V(p.x, p.y + 1.2*s, p.z), k*1.5 > 1 ? 1 : k*1.5); }
+    camera.lookAt(lookT);
+  } else { idleA += dt*.08; const R = S.spec.world.size + 6; camera.position.set(Math.sin(idleA)*R, 14, Math.cos(idleA)*R); lookT.set(0,1,0); camera.lookAt(lookT); }
+  updatePins(); renderer.render(scene, camera); requestAnimationFrame(frame);
+}
+function stepPlayer(dt, tt){
+  const p = ROOT.player.position, body = ROOT.player.getObjectByName("body"); let mx = 0, mz = 0;
+  const f = V(-Math.sin(camYaw),0,-Math.cos(camYaw)), r = V(Math.cos(camYaw),0,-Math.sin(camYaw));
+  if (keys.w || keys.arrowup){ mx += f.x; mz += f.z; } if (keys.s || keys.arrowdown){ mx -= f.x; mz -= f.z; }
+  if (keys.d || keys.arrowright){ mx += r.x; mz += r.z; } if (keys.a || keys.arrowleft){ mx -= r.x; mz -= r.z; }
+  if (mx || mz) moveTarget = null;
+  else if (moveTarget){ const dx = moveTarget.x - p.x, dz = moveTarget.z - p.z, d = Math.hypot(dx,dz); if (d < .25) moveTarget = null; else { mx = dx/d; mz = dz/d; } }
+  const len = Math.hypot(mx,mz), moving = len > 0, wet = inWater(p.x, p.z);
+  if (moving){ const sp = S.spec.player.speed*(wet ? .65 : 1)*dt; p.x += mx/len*sp; p.z += mz/len*sp; if (body) body.rotation.y = Math.atan2(mx, mz); }
+  const lim = S.spec.world.size, rr = Math.hypot(p.x, p.z); if (rr > lim){ p.x *= lim/rr; p.z *= lim/rr; }
+  p.y = lerp(p.y, wet ? -.45 : 0, .15);
+  const sw = moving ? Math.sin(tt*12)*.5 : 0; legs.forEach((l,i) => l.rotation.x = (i%2 ? -sw : sw));
+  if (game.carrying === null) for (const pk of pickups){ if (pk.active && Math.hypot(pk.g.position.x - p.x, pk.g.position.z - p.z) < S.spec.rules.pickupRadius*Math.max(1, S.spec.player.size)){ carry(pk); break; } }
+  else if (!game.flying){ const sk = skel(), sx = sk ? sk.x : 0, sz = sk ? sk.z : 0; if (Math.hypot(sx - p.x, sz - p.z) < S.spec.rules.dropRadius) deliver(); }
+  game.timeLeft -= dt; if (game.timeLeft <= 0){ game.timeLeft = 0; endRound(false); }
+  paintHudTime();
+}
+/* demo shortcut: "]" brings the next bone home instantly, handy when presenting */
+function demoSkip(){ if (!game.playing || game.over || game.flying) return; if (game.carrying === null){ const pk = pickups.find(q => q.active); if (!pk) return; carry(pk); } deliver(); }
+function carry(pk){
+  pk.active = false; ROOT.bones.remove(pk.g); dispose(pk.g);
+  const obj = new THREE.Group(), m = pickupMesh(pk.i); obj.add(m); tagAll(obj, "bones", BONES[pk.i].label + " bone"); obj.position.y = 2.6; obj.scale.setScalar(.75*S.spec.bones.size);
+  ROOT.player.add(obj); game.carriedObj = obj; game.carrying = pk.i; refreshPickables(); paintHud();
+}
+function deliver(){
+  const obj = game.carriedObj, wp = obj.getWorldPosition(V()), sc = obj.getWorldScale(V()).x; ROOT.player.remove(obj); obj.position.copy(wp); obj.scale.setScalar(sc); scene.add(obj);
+  const sk = skel(); game.flying = {obj, from:wp.clone(), to:V(sk ? sk.x : 0, 2.4, sk ? sk.z : 0), t0:performance.now(), i:game.carrying, sc};
+  game.carriedObj = null; game.carrying = null; refreshPickables(); paintHud();
+}
+function stepFlying(now){
+  const f = game.flying, k = clamp((now - f.t0)/800, 0, 1), e = 1 - Math.pow(1-k, 2);
+  f.obj.position.lerpVectors(f.from, f.to, e); f.obj.position.y += Math.sin(k*Math.PI)*3; f.obj.rotation.y += .25; f.obj.scale.setScalar(f.sc*(1 - k*.6));
+  if (k < 1) return;
+  scene.remove(f.obj); dispose(f.obj); game.flying = null; const b = BONES[f.i]; game.placed.add(b.part);
+  const sk = skel(); if (sk){ S.dirty.add("prop:" + sk.id); ripple(sk.x, sk.z, false); }
+  refreshPickables(); paintHud(); toast(`<b>${b.label}</b> is back on the skeleton · ${game.placed.size} / ${BONES.length}`, 2200);
+  if (game.placed.size === BONES.length) revive();
+}
+function revive(){
+  const sk = skel(); game.over = true; if (!sk){ endRound(true); return; }
+  game.reviving = true; game.pre = {params:clone(sk.params), y:sk.y}; const key = "prop:" + sk.id, tok = game.t0;
+  Object.entries({ribClose:.92, neckLift:1.15, neckCurve:.15, tailCurl:1.1, tailSide:.2, legSplay:.12, spineArch:.55, skullTilt:.25, jawOpen:.75, glow:.7}).forEach(([k,v]) => setParam(key, "params."+k, v, true, 2400));
+  setParam(key, "y", .45, true, 2400); ripple(sk.x, sk.z, true); setTimeout(() => ripple(sk.x, sk.z, true), 700);
+  setTimeout(() => { if (game.t0 !== tok) return; game.reviving = false; game.alive = true; setParam(key, "params.jawOpen", .25, true, 900); endRound(true); }, 2700);
+}
+function endRound(win){
+  game.over = true; const ov = $("#ov-result"); ov.hidden = false; const used = Math.round(S.spec.rules.timeLimit - game.timeLeft);
+  ov.innerHTML = `<div class="card"><div class="eyebrow">${win ? "Round complete" : "Round over"}</div><div class="big">${win ? "It's alive!" : "Out of time"}</div><p>${win ? `You rebuilt the skeleton in ${used}s.` : `${game.placed.size} of ${BONES.length} bones made it back.`}</p><button class="btn primary" id="again">${win ? "Play again" : "Try again"}</button></div>`;
+  $("#again").onclick = startRound; paintHud();
+}
+function paintHud(){
+  const n = game.placed.size, c = game.carrying;
+  $("#hud").innerHTML = `<div class="hpill"><span class="dots">${BONES.map(b => `<i class="${game.placed.has(b.part) ? "on" : ""}"></i>`).join("")}</span>${n} / ${BONES.length} bones</div>`
+    + (c !== null ? `<div class="hpill carry">Carrying the ${esc(BONES[c].label.toLowerCase())} · take it to the skeleton</div>` : "")
+    + `<div class="hpill" id="hudTime"></div>` + (S.mode === "comment" ? `<div class="hpill paused">Paused for notes</div>` : "");
+  paintHudTime();
+}
+function paintHudTime(){ const el = $("#hudTime"); if (!el) return; const t = Math.ceil(game.timeLeft); el.textContent = `${Math.floor(t/60)}:${String(t%60).padStart(2,"0")}`; }
+
+/* tweens: AI changes animate in */
+function setParam(key, path, v, tween, dur){
+  const val = clampVal(key, path, v); if (val === null) return false; const cur = getPath(key, path); if (cur === val) return false;
+  S.tweens = S.tweens.filter(t => !(t.key === key && t.path === path));
+  if (tween && typeof val !== "boolean") S.tweens.push({key, path, from:cur, to:val, start:performance.now(), dur:dur || 900});
+  else { setPath(key, path, val); S.dirty.add(dirtyKey(key, path)); afterSet(key, path); }
+  return true;
+}
+const dirtyKey = (key, path) => key === "rules" ? "rules" : (key === "world" && /^(timeOfDay|fog|sky)$/.test(path)) ? "sky" : key;
+function afterSet(key, path){ if (key === "rules" && path === "timeLimit" && game.playing && !game.over){ game.timeLeft = Math.min(game.timeLeft, S.spec.rules.timeLimit); paintHudTime(); } }
+const ca = new THREE.Color(), cb = new THREE.Color();
+function updateTweens(now){
+  if (!S.tweens.length) return;
+  S.tweens = S.tweens.filter(t => {
+    const k = clamp((now - t.start)/t.dur, 0, 1), e = k < .5 ? 2*k*k : 1 - Math.pow(-2*k+2, 2)/2; let v;
+    if (typeof t.to === "number"){ v = lerp(t.from, t.to, e); if (INT.has(String(t.path).split(".").pop())) v = Math.round(v); } else v = "#" + ca.set(t.from).lerp(cb.set(t.to), e).getHexString();
+    if (k === 1) v = t.to; setPath(t.key, t.path, v); S.dirty.add(dirtyKey(t.key, t.path)); afterSet(t.key, t.path); return k < 1;
+  });
+  syncOpenTools();
+}
+
+/* ═════════════ Picking & pointer ═════════════ */
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(V(0,1,0), 0);
+let moveTarget = null;
+function setRay(cx, cy){ const r = canvas.getBoundingClientRect(); ndc.set((cx - r.left)/r.width*2 - 1, -(cy - r.top)/r.height*2 + 1); ray.setFromCamera(ndc, camera); }
+function isShown(o){ while (o){ if (!o.visible) return false; o = o.parent; } return true; }
+function pick(cx, cy){
+  setRay(cx, cy); const hits = ray.intersectObjects(pickables, false).filter(h => isShown(h.object));
+  if (!hits.length) return {key:"world", part:"Sky", point:ray.ray.at(60, V())};
+  const o = hits[0].object; let part = o.userData.part;
+  if (o.userData.key.startsWith("prop:") && targetObj(o.userData.key)?.type === "skeleton" && !skelOn(part)) part += " (missing)";
+  return {key:o.userData.key, part, idx:o.userData.idx, point:hits[0].point.clone()};
+}
+let down = null;
+canvas.addEventListener("pointerdown", e => { if (spaceDown) return; if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); down = {x:e.clientX, y:e.clientY, moved:false}; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener("pointermove", e => {
+  if (down){ if (Math.abs(e.clientX - down.x) + Math.abs(e.clientY - down.y) > 5) down.moved = true; if (down.moved && S.phase === "play"){ camYaw -= e.movementX*.008; S.spec.camera.height = clamp(S.spec.camera.height + e.movementY*.03, 3, 20); syncOpenTools(); } }
+  if (S.phase === "play" && (S.mode === "comment" || S.attach) && $("#pop").hidden){ const p = pick(e.clientX, e.clientY), t = $("#hovertag"), w = wrap.getBoundingClientRect();
+    t.hidden = false; t.textContent = (S.attach ? cap(S.attach) + " → " : "") + labelFor(p.key, p.part); t.style.left = (e.clientX - w.left) + "px"; t.style.top = (e.clientY - w.top) + "px"; highlight(p.key); }
+});
+canvas.addEventListener("pointerleave", () => { $("#hovertag").hidden = true; highlight(null); });
+canvas.addEventListener("pointerup", e => {
+  const d = down; down = null; if (!d || d.moved || S.phase !== "play") return;
+  if (S.attach){ finishAttach(pick(e.clientX, e.clientY)); return; }
+  if (S.mode === "comment"){ if (!$("#pop").hidden){ closePop(); return; } openPop(e.clientX, e.clientY); }
+  else { setRay(e.clientX, e.clientY); const pt = ray.ray.intersectPlane(plane, V()); if (pt) moveTarget = pt; }
+});
+canvas.addEventListener("wheel", e => { if (e.ctrlKey || e.metaKey || S.phase !== "play") return; e.preventDefault(); e.stopPropagation(); S.spec.camera.distance = clamp(S.spec.camera.distance + e.deltaY*.02, 6, 40); syncOpenTools(); }, {passive:false});
+let hiKey = null;
+function highlight(key){
+  if (hiKey === key) return;
+  pickables.forEach(m => { const ma = m.material; if (ma.userData.hl){ ma.emissive.copy(ma.userData.be); ma.userData.hl = false; } });
+  hiKey = key; if (!key || key === "world") return;
+  pickables.forEach(m => { if (m.userData.key !== key) return; const ma = m.material; if (!ma.emissive) return; if (!ma.userData.hl){ ma.userData.be = ma.emissive.clone(); ma.userData.hl = true; ma.emissive.set("#ff5a4e").multiplyScalar(.4); } });
+}
+function flashKey(key){ highlight(key); setTimeout(() => { if (hiKey === key) highlight(null); }, 700); }
+
+/* ═════════════ Comments ═════════════ */
+let popCtx = null;
+function chipsFor(key){
+  const p = key.startsWith("prop:") ? targetObj(key) : null;
+  if (p?.type === "skeleton") return ["Make it bigger","Sink it deeper","Give me a tool to tune its pose"];
+  if (p) return ["Make it bigger","Change its color","Remove it"];
+  return ({water:["Make the lake bigger","Bluer water","More mist"], player:["Walk faster","Different color","A bit bigger"], bones:["Make them bigger","Brighter beacons","Make them glow gold"]}[key]) || ["Make it night","Add some fog","More trees"];
+}
+function openPop(cx, cy, forced){
+  const p = forced || pick(cx, cy), g = anchorGroup(p.key) || ROOT.world; g.updateMatrixWorld(true);
+  popCtx = {key:p.key, part:p.part, idx:p.idx, anchor:{key:p.key, local:g.worldToLocal(p.point.clone())}};
+  const w = wrap.getBoundingClientRect(), pop = $("#pop"); pop.hidden = false;
+  $("#popTarget").textContent = labelFor(p.key, p.part); $("#popText").value = "";
+  $("#popChips").innerHTML = chipsFor(p.key).map(t => `<button class="chip" type="button">${esc(t)}</button>`).join("");
+  $("#popChips").querySelectorAll(".chip").forEach(b => b.onclick = () => { $("#popText").value = b.textContent; $("#popText").focus(); });
+  pop.style.left = clamp(cx - w.left + 12, 8, w.width - 308) + "px"; pop.style.top = clamp(cy - w.top + 12, 8, w.height - 250) + "px"; $("#hovertag").hidden = true;
+  setTimeout(() => $("#popText").focus(), 0); paintHud();
+}
+function closePop(){ $("#pop").hidden = true; popCtx = null; paintHud(); }
+$("#popCancel").onclick = closePop;
+$("#popAdd").onclick = () => { const t = $("#popText").value.trim(); if (!t || !popCtx) return; addNote(popCtx.key, popCtx.part, popCtx.idx, t, popCtx.anchor); closePop(); };
+$("#popText").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey){ e.preventDefault(); $("#popAdd").click(); } if (e.key === "Escape") closePop(); });
+function addNote(key, part, idx, text, anchor, quiet){
+  const it = {id:nid("n"), n:++S.pinN, key, part, idx, text, anchor, status:"draft"}; S.batch.push(it); paintAll();
+  if (!quiet) toast(`Note <b>${it.n}</b> saved. Add more, then <b>Send</b> them together.`, 2400); return it;
+}
+const pinEls = new Map();
+function paintPins(){
+  const layer = $("#pins"), live = new Set();
+  S.batch.forEach(it => { if (!it.anchor || it.pinGone) return; live.add(it.id); let el = pinEls.get(it.id);
+    if (!el){ el = document.createElement("div"); el.onclick = () => { openNotes(true); const card = document.querySelector(`[data-item="${it.id}"]`); if (card){ card.scrollIntoView({block:"nearest"}); card.classList.remove("flash"); void card.offsetWidth; card.classList.add("flash"); } }; layer.appendChild(el); pinEls.set(it.id, el); }
+    el.textContent = it.status === "done" ? "✓" : it.n; el.className = "pin " + it.status; el.title = it.text; });
+  for (const [id, el] of pinEls) if (!live.has(id)){ el.remove(); pinEls.delete(id); }
+}
+const pv = new THREE.Vector3();
+function updatePins(){
+  if (S.phase !== "play"){ $("#pins").hidden = true; return; } $("#pins").hidden = false; const r = {width:canvas.clientWidth, height:canvas.clientHeight};
+  S.batch.forEach(it => { const el = pinEls.get(it.id); if (!el) return; const g = anchorGroup(it.anchor.key); if (!g){ el.style.display = "none"; return; }
+    pv.copy(it.anchor.local); g.localToWorld(pv); pv.project(camera); if (pv.z > 1){ el.style.display = "none"; return; }
+    el.style.display = ""; el.style.left = ((pv.x+1)/2*r.width) + "px"; el.style.top = ((1-pv.y)/2*r.height) + "px"; });
+}
+
+/* ═════════════ Modes, keys, panels ═════════════ */
+function setMode(m){
+  if (m === "comment") S.attach = null;
+  S.mode = m; frameEl.classList.toggle("commenting", m === "comment" || !!S.attach);
+  $("#mPlay").classList.toggle("on", m === "play"); $("#mComment").classList.toggle("on", m === "comment");
+  const h = $("#hint"); h.hidden = m !== "comment" && !S.attach; h.textContent = S.attach ? `Click an object to attach ${cap(S.attach)} · Esc to cancel` : "Click anything to leave a note · drag to look around · Esc to keep playing";
+  if (m === "play"){ closePop(); $("#hovertag").hidden = true; highlight(null); } paintHud();
+}
+$("#mPlay").onclick = () => setMode("play"); $("#mComment").onclick = () => setMode("comment");
+const typing = () => { const a = document.activeElement; return !!a && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && !/^(range|color|button|checkbox)$/.test(a.type))); };
+addEventListener("keydown", e => { if (typing() || S.phase !== "play") return; const k = e.key.toLowerCase();
+  if (k === "c") return setMode(S.mode === "comment" ? "play" : "comment"); if (k === "p" || k === "escape"){ if (S.attach) return cancelAttach(); return setMode("play"); } if (k === "r") return startRound(); if (k === "]") return demoSkip();
+  if (["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"].includes(k)){ keys[k] = true; e.preventDefault(); } });
+addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
+addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
+function toast(html, ms){ const t = document.createElement("div"); t.className = "card toast"; t.innerHTML = html; $("#toasts").appendChild(t); setTimeout(() => t.remove(), ms || 4500); return t; }
+function openNotes(open){ const p = $("#notesPop"); p.hidden = open === undefined ? !p.hidden : !open; $("#strip").classList.toggle("on", !p.hidden); }
+$("#strip").onclick = () => openNotes(); $("#sendBatch").onclick = () => sendBatch();
+
+function setChat(open){ S.chatOpen = open; $("#chat").hidden = !open; $("#chatBtn").classList.toggle("on", open); $("#chatBtn").title = open ? "Hide chat" : "Show chat"; if (open) $("#chatDot").hidden = true; }
+$("#chatBtn").onclick = () => setChat(!S.chatOpen); $("#chatX").onclick = () => setChat(false);
+function addMsg(role, html){
+  $("#chatEmpty")?.remove(); const el = document.createElement("div"); el.className = "msg " + role;
+  el.innerHTML = role === "ai" ? `<div class="wana"></div><div class="bub">${html}</div>` : `<div class="bub">${html}</div>`;
+  $("#msgs").appendChild(el); $("#msgs").scrollTop = 1e9; if (!S.chatOpen && role === "ai") $("#chatDot").hidden = false; return el.querySelector(".bub");
+}
+const scrollChat = () => { $("#msgs").scrollTop = 1e9; };
+
+document.querySelectorAll("#pv button").forEach(b => b.onclick = () => { S.preview = b.dataset.pv; document.querySelectorAll("#pv button").forEach(x => x.classList.toggle("on", x === b)); layoutFrame(); drawEdges(); reflow(); drawEdges(); fitGame(); });
+$("#homeBtn").onclick = () => { $("#homeMenu").hidden = !$("#homeMenu").hidden; $("#pubPop").hidden = true; };
+$("#menuClose").onclick = () => $("#homeMenu").hidden = true; $("#startOver").onclick = () => location.reload();
+$("#pubBtn").onclick = () => {
+  const p = $("#pubPop"); $("#homeMenu").hidden = true; if (!p.hidden){ p.hidden = true; return; }
+  let img = ""; try { img = canvas.toDataURL("image/jpeg", .75); } catch(e) {}
+  p.innerHTML = `<div class="eyebrow">Publish</div>${img ? `<img src="${img}" alt="Cover from the current view">` : ""}<input id="pubTitle" value="${esc(S.spec.title)}" aria-label="Game title"><div class="muted" style="font-size:12px;margin:8px 0 12px;line-height:1.5">Cover is the current view. Plays on PC and mobile.</div><div class="row" style="justify-content:flex-end"><button class="btn sm" id="pubCancel">Cancel</button><button class="btn sm primary" id="pubGo">Publish</button></div>`;
+  p.hidden = false; $("#pubCancel").onclick = () => p.hidden = true;
+  $("#pubGo").onclick = () => { S.spec.title = $("#pubTitle").value.trim() || S.spec.title; $("#gameTitle").textContent = S.spec.title; $("#saveTxt").textContent = "Published"; p.hidden = true; toast("<b>Published.</b> This is a demo, so nothing was uploaded."); };
+};
+document.addEventListener("pointerdown", e => { if (!e.target.closest("#pubPop,#pubBtn")) $("#pubPop").hidden = true; if (!e.target.closest("#homeMenu,#homeBtn")) $("#homeMenu").hidden = true; });
+
+/* notes list */
+const STL = {draft:"Ready to send", running:"Wana is on it", done:"Done", question:"Needs your answer", unsupported:"Can't do yet"};
+function changeLine(ch){ return ch.type === "set" ? `${labelFor(ch.key)} · ${paramLabel(ch.key, ch.path)}: ${fmt(ch.from)} → ${fmt(ch.to)}` : ch.text; }
+function paintAll(){ paintStrip(); paintNotes(); paintPins(); }
+function paintStrip(){
+  const drafts = S.batch.filter(i => i.status === "draft"), running = S.batch.filter(i => i.status === "running").length, st = $("#strip");
+  st.innerHTML = drafts.length ? `<span class="chips">${drafts.slice(-5).map(i => `<i class="${i.key === "global" ? "g" : ""}">${i.n}</i>`).join("")}</span><span>${drafts.length} note${drafts.length > 1 ? "s" : ""} ready</span>`
+    : running ? `<span class="sp"></span><span>Wana is working on ${running} note${running > 1 ? "s" : ""} · keep playing</span>`
+    : `<span class="muted">${S.batch.length ? "Notes and versions" : "No notes yet · press C and click the game"}</span>`;
+  const sb = $("#sendBatch"); sb.disabled = !drafts.length; sb.textContent = drafts.length ? `Send ${drafts.length}` : "Send";
+}
+function paintNotes(){
+  const box = $("#notesPop");
+  if (!S.batch.length){ box.innerHTML = `<div class="sect">Notes</div><div class="empty">Press <kbd>C</kbd> and click anything in the game to leave a note on it. Notes wait here until you send them together.</div>${histHtml()}`; bindHist(box); return; }
+  const order = ["question","draft","running","done","unsupported"], list = [...S.batch].sort((a,b) => order.indexOf(a.status) - order.indexOf(b.status) || b.n - a.n);
+  box.innerHTML = `<div class="sect"><span>Notes · ${S.batch.length}</span></div>` + list.map(it => `
+    <div class="item" data-item="${it.id}">
+      <div class="ih"><span class="num ${it.key === "global" ? "g" : ""}">${it.n}</span><span class="target">${esc(labelFor(it.key, it.part))}</span><span class="st ${it.status}">${STL[it.status]}</span>${it.status === "draft" ? `<button class="x" data-del="${it.id}" aria-label="Delete note">×</button>` : ""}</div>
+      <div class="it">${esc(it.text)}</div>
+      ${it.summary ? `<div class="res">${esc(it.summary)}${it.changes?.length ? `<ul class="ch">${it.changes.map(ch => `<li>${esc(changeLine(ch))}</li>`).join("")}</ul>` : ""}${it.toolId ? `<div class="row" style="margin-top:6px"><button class="btn sm" data-opentool="${it.toolId}">Open tool</button></div>` : ""}</div>` : ""}
+      ${it.status === "question" && it.question ? `<div class="res"><b style="color:var(--ink)">${esc(it.question.text)}</b><div class="row" style="margin-top:6px">${it.question.options.map(o => `<button class="chip" data-ans="${it.id}">${esc(o)}</button>`).join("")}</div></div>` : ""}
+    </div>`).join("") + histHtml();
+  box.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { S.batch = S.batch.filter(i => i.id !== b.dataset.del); paintAll(); });
+  box.querySelectorAll("[data-opentool]").forEach(b => b.onclick = () => openTool(b.dataset.opentool));
+  box.querySelectorAll("[data-ans]").forEach(b => b.onclick = () => answerItem(b.dataset.ans, b.textContent));
+  bindHist(box);
+}
+function answerItem(id, ans){ const it = S.batch.find(i => i.id === id); if (!it || it.status !== "question") return; it.answer = ans; it.status = "draft"; it.summary = null; runNotes([it], "answer"); }
+function histHtml(){ const hs = S.history.filter(h => h.v === S.cur), cv = curV(); if (!hs.length) return ""; return `<div class="sect" style="margin-top:14px">Changes on V${cv ? cv.n : ""}</div>` + [...hs].reverse().map(h => `<div class="hist"><div><div>${esc(h.label)}</div><div class="hs">${esc(h.time)} · ${h.count} change${h.count===1?"":"s"}</div></div>${h.undone ? `<span class="st draft">Undone</span>` : `<button class="btn sm" data-undo="${h.id}">Undo</button>`}</div>`).join(""); }
+function bindHist(root){ root.querySelectorAll("[data-undo]").forEach(b => b.onclick = () => undoBatch(b.dataset.undo)); }
+function undoBatch(id){ const h = S.history.find(x => x.id === id); if (!h || h.undone) return; S.tweens = []; S.spec = clone(h.before); markAll(); h.undone = true; paintAll(); renderPanel(); updateBadge(); toast(`Undid <b>${esc(h.label)}</b>.`); document.querySelectorAll(`[data-undo="${id}"]`).forEach(b => { b.disabled = true; b.textContent = "Undone"; }); }
+function pushHistory(label, before, count){ const h = {id:nid("h"), v:S.cur, label, time:new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}), count, before, undone:false}; S.history.push(h); return h; }
+
+/* ═════════════ Start → plan → build ═════════════ */
+$("#idea").value = FIXED_PROMPT;
+$("#startBtn").onclick = start;
+function planHtml(){
+  return `<div class="plan"><div class="eyebrow">Build plan · AI context</div><h3>${esc(PLAN.title)}</h3><p>${esc(PLAN.pitch)}</p><dl>${PLAN.rows.map(([k,v]) => `<dt>${k}</dt><dd>${Array.isArray(v) ? `<ol>${v.map(x => `<li>${esc(x)}</li>`).join("")}</ol>` : esc(v)}</dd>`).join("")}</dl></div>`;
+}
+async function start(){
+  const text = $("#idea").value.trim() || FIXED_PROMPT, edited = text !== FIXED_PROMPT;
+  $("#ov-start").hidden = true; setChat(true); addMsg("user", esc(text)); const b = addMsg("ai", DOTS); S.phase = "plan";
+  await sleep(1500);
+  b.innerHTML = (edited ? `<p style="margin:0 0 6px" class="muted">This demo always builds the Bone Lake scene, so I'll use the original idea.</p>` : "")
+    + `Your idea already covers the player, the goal, the world and how a round ends, so I'll skip the questions. Here's the plan. I keep it as context while you play and edit.` + planHtml()
+    + `<div class="row" style="margin-top:10px"><button class="btn primary sm" id="buildGo">Build & play</button></div>`;
+  scrollChat(); $("#buildGo").onclick = build; $("#gameTitle").textContent = PLAN.title; $("#gTitle").textContent = PLAN.title;
+}
+function popIn(g){ if (!g) return; const s0 = g.scale.x || 1, t0 = performance.now(); g.scale.setScalar(s0*.01); const f = now => { const k = clamp((now-t0)/450,0,1), e = 1 - Math.pow(1-k,3); g.scale.setScalar(s0*Math.max(.01,e)); if (k < 1) requestAnimationFrame(f); }; requestAnimationFrame(f); }
+function blockoutSpec(){ const s = baseSpec(); s.world.timeOfDay = .06; s.world.fog = .04; s.props = s.props.filter(p => p.id !== "camp"); s.props.find(p => p.id === "pines").count = 7; return s; }
+async function build(){
+  $("#buildGo").disabled = true; S.phase = "build"; $("#zbar").hidden = false; paintVersions();
+  S.spec = blockoutSpec(); markAll(); handleDirty(); propGroups.forEach(g => g.visible = false); ROOT.player.visible = false; ROOT.bones.visible = false;
+  const show = id => { const g = propGroups.get(id); if (g){ g.visible = true; popIn(g); } };
+  const steps = [["Lake, sky and ground", () => {}], ["Dinosaur skeleton, 6 parts missing", () => show("skel")], ["Pines and rocks", () => { show("pines"); show("rocks"); }],
+    ["Explorer in a red jacket", () => { ROOT.player.visible = true; popIn(ROOT.player); }], ["6 bones on the shore", () => { ROOT.bones.visible = true; }],
+    ["Rules: 2:00 timer, carry one bone at a time", () => {}]];
+  addMsg("ai", `<b>V1 · Blockout</b><div class="muted" style="font-size:12.5px">Layout and rules first, so it's playable early.</div><div class="steps">${steps.map((s,i) => `<div class="bl" id="bs${i}"><span class="s"></span>${esc(s[0])}</div>`).join("")}</div>`); scrollChat();
+  ROOT.player.position.copy(startPos());
+  for (let i=0;i<steps.length;i++){ $("#bs"+i).className = "bl run"; await sleep(380 + Math.random()*280); steps[i][1](); $("#bs"+i).className = "bl ok"; }
+  propGroups.forEach(g => g.visible = true); ROOT.player.visible = true; ROOT.bones.visible = true;
+  await sleep(350); newVersion("Blockout", ["Layout, skeleton, bones and rules. Playable, flat daylight."], null, "");
+  await sleep(400);
+  const look = [
+    ["Mood image on the canvas", async () => {
+      const m = createNode("image", {prompt:"Misty lake at sunset, a huge white dinosaur skeleton half-sunk in the middle, pines around it, warm low-poly", title:"Mood · misty lake at sunset"});
+      m.status = "running"; m.progress = .05; paintNode(m); fitAll(); const tick = fakeProgress(m); await sleep(1500); clearInterval(tick);
+      const a = {title:"Mood · misty lake at sunset", tod:.42, fog:.3, sky:"#bfe3f2", ground:"#6f8a48", water:"#3f8fa8", accent:"#ffd27a", motifs:["skeleton","pines"]}, b = Object.assign({}, a, {tod:.56, fog:.48});
+      m.results = [{spec:a, url:paintRef(a, 7)}, {spec:b, url:paintRef(b, 31)}]; m.status = "done"; m.progress = 1; paintNode(m); link(m.id, "game", "Look"); fitAll(); }],
+    ["Sunset light and soft mist, matched to it", async () => { setParam("world","timeOfDay",.42,true,1600); setParam("world","fog",.3,true,1600); await sleep(500); }],
+    ["Campfire on the shore", async () => { S.spec.props.push(sanitizeProp({id:"camp", name:"Campfire", role:"decor", type:"parts", x:5, z:20, scale:1, color:"#6b4a2f", parts:CAMP})); S.dirty.add("prop:camp"); setTimeout(() => popIn(propGroups.get("camp")), 40); await sleep(350); }],
+    ["More pines around the lake", async () => { setParam("prop:pines","count",14,true,1000); await sleep(350); }]];
+  const beforeLook = clone(S.spec), th = snap();
+  addMsg("ai", `<b>V2 · Look pass</b><div class="muted" style="font-size:12.5px">I made a mood image next to the game, then matched the scene to it.</div><div class="steps">${look.map((s,i) => `<div class="bl" id="ls${i}"><span class="s"></span>${esc(s[0])}</div>`).join("")}</div>`); scrollChat();
+  for (let i=0;i<look.length;i++){ $("#ls"+i).className = "bl run"; await look[i][1](); $("#ls"+i).className = "bl ok"; }
+  await sleep(1300); newVersion("Look pass", ["Sunset light, mist, a campfire and more pines, matched to the mood image"], beforeLook, th);
+  addMsg("ai", `Ready, playing <b>V2</b>. Every batch of notes becomes a new version in the tabs above the game, so you can always go back. Next to the game there's room to make reference images and 3D assets while you play.`);
+  S.phase = "play"; $("#hud").hidden = false; $("#dock").hidden = false; $("#side").hidden = false; setMode("play"); startRound(); paintAll(); updateBadge(); paintVersions();
+  createNode("asset", {prompt:"A lantern on a wooden post to light the shore"});
+  createNode("image", {prompt:"The dinosaur comes alive at night, fireflies over the lake"});
+  const peek = () => { const gb = gameBox(); fitBox({x0:gb.x0 - 90, y0:gb.y0, x1:gb.x1, y1:gb.y1}, 20, 1.15, true); lastSize = {w:wrap.clientWidth, h:wrap.clientHeight}; };
+  fitBox(gameBox(), 20, 1.15); setTimeout(() => { setChat(false); peek(); }, 1400); showCoach();
+}
+function showCoach(){
+  const c = $("#coach"), sk = skel(); c.hidden = false;
+  c.innerHTML = `<b>Play, then edit</b><br>WASD or click to move. The tabs above the game are versions: each batch of notes makes a new one. Zoom out to make reference images and 3D assets beside the game while you keep playing.<div class="row">${sk ? `<button class="btn sm primary" id="coachTry">Try it on the skeleton</button>` : ""}<button class="btn sm" id="coachX">Got it</button></div>`;
+  $("#coachX").onclick = () => c.hidden = true;
+  if (sk) $("#coachTry").onclick = () => { c.hidden = true; setMode("comment"); const g = propGroups.get(sk.id); const wp = g.position.clone().add(V(0, 1.6*sk.scale, 0)), v = wp.clone().project(camera), r = canvas.getBoundingClientRect();
+    openPop(r.left + (v.x+1)/2*r.width, r.top + (1-v.y)/2*r.height, {key:"prop:" + sk.id, part:sk.name, point:wp});
+    $("#popText").value = "I can't describe how big it should be or how the joints should bend. Give me a tool to tune it myself."; };
+}
+
+/* chat composer: a message runs right away; comments wait for Send */
+$("#chatForm").addEventListener("submit", e => {
+  e.preventDefault(); const t = $("#chatIn").value.trim(); if (!t) return; $("#chatIn").value = "";
+  if (S.phase !== "play"){ addMsg("user", esc(t)); addMsg("ai", S.phase === "idea" ? "Press Start on the idea card first." : "Noted. I'll keep that in mind once the scene is built."); return; }
+  const it = addNote("global", null, undefined, t, null); runNotes([it], "chat");
+});
+
+/* ═════════════ Notes → AI → scene edits ═════════════ */
+let batchSeq = 0;
+function sendBatch(){ const list = S.batch.filter(i => i.status === "draft"); if (list.length) runNotes(list, "batch"); }
+async function runNotes(list, source){
+  list.forEach(i => i.status = "running"); paintAll(); openNotes(false);
+  const fromV = S.cur, ref = list[0].ref;
+  const label = source === "ref" ? `Look from ${ref.title}` : source === "batch" ? `${list.length} note${list.length > 1 ? "s" : ""}` : source === "answer" ? `Answer to note ${list[0].n}` : (list[0].text.length > 34 ? list[0].text.slice(0, 32) + "…" : list[0].text);
+  if (source === "batch") addMsg("user", `Sent ${list.length} note${list.length > 1 ? "s" : ""}:<ol>${list.map(i => `<li>${i.key === "global" ? "" : esc(labelFor(i.key, i.part)) + ": "}${esc(i.text)}</li>`).join("")}</ol>`);
+  else if (source === "chat") addMsg("user", esc(list[0].text));
+  else if (source === "ref") addMsg("user", `Use <b>${esc(ref.title)}</b> as the look for the game.`);
+  else addMsg("user", esc(list[0].answer));
+  const bub = addMsg("ai", DOTS); S.pendingV++; paintVersions();
+  let results = null; try { results = await aiEdits(list); } catch(e){ if (e.code !== "offline") toast("Claude didn't answer cleanly, so the offline rules handled it."); }
+  if (!results){ await sleep(700 + 350*list.length); results = list.map(ruleInterpret); }
+  if (S.cur !== fromV && S.versions.some(v => v.id === fromV)){ switchVersion(fromV, true); toast(`Back on <b>V${curV().n}</b> to apply these notes.`, 2000); }
+  const beforeApply = clone(S.spec), thumb = snap(); let count = 0;
+  for (const it of list){ const res = results.find(r => r && r.id === it.id) || ruleInterpret(it); await sleep(300); count += applyResult(it, res); paintAll(); }
+  S.pendingV = Math.max(0, S.pendingV - 1); const parent = curV(); const v = count ? newVersion(label, list.map(i => i.text), beforeApply, thumb) : null; if (!v) paintVersions();
+  const one = list.length === 1;
+  bub.innerHTML = (one ? "" : `<b>${esc(label)}</b>`) + `<ol class="rlist" ${one ? 'style="list-style:none;padding:0;margin:0"' : ""}>${list.map(it => `<li>${esc(it.summary || "")}${it.changes?.length ? `<ul class="ch">${it.changes.slice(0,6).map(ch => `<li>${esc(changeLine(ch))}</li>`).join("")}${it.changes.length > 6 ? `<li>+${it.changes.length - 6} more</li>` : ""}</ul>` : ""}${it.status === "question" && it.question ? `<div class="row" style="margin-top:6px">${it.question.options.map(o => `<button class="chip" data-ans="${it.id}">${esc(o)}</button>`).join("")}</div>` : ""}${it.toolId ? `<div style="margin-top:6px"><button class="btn sm" data-opentool="${it.toolId}">Open tool</button></div>` : ""}</li>`).join("")}</ol>`
+    + (v ? `<div class="row" style="margin-top:8px"><span class="vsaved">Saved as V${v.n}</span><button class="btn sm" data-ver="${parent.id}">Back to V${parent.n}</button><button class="btn sm" data-restart>Restart round</button></div>` : "");
+  bub.querySelectorAll("[data-ans]").forEach(b => b.onclick = () => answerItem(b.dataset.ans, b.textContent));
+  bub.querySelectorAll("[data-opentool]").forEach(b => b.onclick = () => openTool(b.dataset.opentool));
+  bub.querySelectorAll("[data-ver]").forEach(b => b.onclick = () => switchVersion(b.dataset.ver));
+  bub.querySelector("[data-restart]")?.addEventListener("click", startRound); scrollChat();
+  if (!S.chatOpen){ const done = list.filter(i => i.status === "done").length, q = list.filter(i => i.status === "question").length;
+    const t = toast(`<b>${v ? `V${v.n} ready` : esc(label)}</b>: ${done} done${q ? `, ${q} need${q === 1 ? "s" : ""} your answer` : ""}.<div class="muted" style="margin-top:4px">${list.map(i => `${i.n}. ${esc(i.summary || "")}`).join("<br>")}</div><div class="row">${v ? `<button class="btn sm" data-bk>Back to V${parent.n}</button>` : ""}<button class="btn sm" data-oc>Open chat</button></div>`, 7000);
+    t.querySelector("[data-oc]").onclick = () => { setChat(true); t.remove(); }; t.querySelector("[data-bk]")?.addEventListener("click", () => { switchVersion(parent.id); t.remove(); }); }
+  paintAll(); if (S.panel) renderPanel();
+}
+async function aiEdits(list){
+  const prompt = `You are Wana, the build agent inside Wanaka, where people edit a game while they play it. Turn each note into changes to the live scene JSON.
+
+GAME PLAN: ${JSON.stringify(PLAN)}
+GAME RULES (fixed code, not editable): the player finds 6 bones (skull, neck, ribcage, front legs, hind legs, tail) on the shore and carries them one at a time to the skeleton; missing skeleton parts show as ghosts; when all are back the skeleton stands up and comes alive.
+
+SCENE JSON (the running game):
+${JSON.stringify(S.spec)}
+
+Targets: "world", "water" (= world.water), "player", "bones" (look of the 6 bone pickups: color, size, beacon color), "rules" (timeLimit, pickupRadius, dropRadius), "camera" (distance, height), "fx" (fireflies true/false, fireflyCount, fireflyColor, trail true/false, trailColor), or "prop:<id>". A param is a dotted path inside the target, e.g. "color", "scale", "rot", "y", "count", "parts.3.rz", "params.neckCurve". Skeleton props have params: ${Object.keys(SKEL).join(", ")}. Only set paths that already exist; keep numbers sensible.
+
+NOTES:
+${list.map(i => `[${i.id}] on ${i.key === "global" ? "the whole game" : `${i.key} (${labelFor(i.key, i.part)}${i.idx !== undefined ? `, part index ${i.idx}` : ""})`}: "${i.text}"${i.question ? ` | you asked: "${i.question.text}", they answered: "${i.answer || ""}"` : ""}${i.ref ? ` | match this reference image (mood and palette; set world sky/ground/timeOfDay/fog, water color, bones beacon, and fx fireflies if it has lights): ${JSON.stringify(i.ref)}` : ""}`).join("\n")}
+
+Ops:
+{"op":"set","target":"prop:skel","param":"scale","value":1.8}
+{"op":"addProp","prop":{"id":"...","name":"...","role":"decor","type":"parts","x":0,"z":0,"y":0,"rot":0,"scale":1,"parts":[{"name":"...","shape":"box|sphere|cylinder|cone|torus|gem|rock","x":0,"y":0.5,"z":0,"sx":1,"sy":1,"sz":1,"rx":0,"ry":0,"rz":0,"color":"#hex"}]}}  (decor types tree, pine, rock, crystal, house, bush use count/rmin/rmax instead of parts)
+{"op":"replaceProp","id":"camp","prop":{...}}
+{"op":"removeProp","id":"rocks"}
+
+Rules:
+- Make a confident best guess, with changes big enough to notice.
+- If a note is about shape, pose, proportions or angles that are hard to put into words, or the person asks to adjust something themselves, ALSO return a "tool": {"title","target","controls":[...]} with 5-8 controls for that object. A control is {"label","target","param"} (optional "min","max") for one number or color, or a macro {"label","binds":[{"target","param","from","to"}]} that moves several numbers with one 0-1 slider (e.g. "Collapsed ↔ standing"). Include at least one macro. Labels in the note's language.
+- If a note is too vague, return status "question" with a short question and 2-4 options, and no ops.
+- If a note needs new game rules or mechanics, sounds or dialogue, return status "unsupported" and say in the summary what it would take.
+- "summary": one short sentence in the note's language saying what you changed.
+
+Reply with only JSON: {"results":[{"id":"${list[0].id}","status":"done","summary":"...","ops":[],"tool":null,"question":null}]}`;
+  const r = await askJSON(prompt, "default"); if (!r || !Array.isArray(r.results)) throw {code:"bad_shape"}; return r.results;
+}
+function applyResult(it, res){
+  const changes = [];
+  (Array.isArray(res.ops) ? res.ops : []).forEach(op => {
+    if (!op) return;
+    if ((op.op === "set" || !op.op) && op.target && op.param !== undefined){ const key = op.target === "global" ? "world" : String(op.target), path = String(op.param), from = getPath(key, path);
+      if (setParam(key, path, op.value, true)){ changes.push({type:"set", key, path, from, to:clampVal(key, path, op.value) ?? op.value}); flashKey(key); } }
+    else if (op.op === "addProp" && op.prop){ const used = new Set(S.spec.props.map(p => p.id)), p = sanitizeProp(op.prop, used); S.spec.props.push(p); S.dirty.add("prop:" + p.id); changes.push({type:"add", text:`+ ${p.name}`}); setTimeout(() => popIn(propGroups.get(p.id)), 40); }
+    else if (op.op === "replaceProp" && op.id){ const i = S.spec.props.findIndex(p => p.id === op.id); if (i >= 0){ const p = sanitizeProp(Object.assign({}, op.prop, {id:op.id})); S.spec.props[i] = p; S.dirty.add("prop:" + p.id); changes.push({type:"rep", text:`↻ ${p.name}`}); setTimeout(() => popIn(propGroups.get(p.id)), 40); } }
+    else if (op.op === "removeProp" && op.id){ const p = S.spec.props.find(x => x.id === op.id); if (p){ S.spec.props = S.spec.props.filter(x => x.id !== op.id); S.dirty.add("props"); changes.push({type:"rm", text:`− ${p.name}`}); } }
+  });
+  it.changes = changes; it.summary = String(res.summary || (changes.length ? "Updated." : ""));
+  it.status = ["done","question","unsupported"].includes(res.status) ? res.status : "done";
+  it.question = it.status === "question" && res.question ? {text:String(res.question.text || res.question), options:Array.isArray(res.question.options) ? res.question.options.slice(0,4).map(String) : []} : null;
+  if (res.tool && Array.isArray(res.tool.controls)){ const tool = makeTool(res.tool, it); if (tool){ it.toolId = tool.id; openTool(tool.id); } }
+  if (it.status !== "question") setTimeout(() => { it.pinGone = true; paintPins(); }, 1600);
+  return changes.length;
+}
+
+/* offline interpreter: keywords → ops */
+const COLORS = [[/red|红/,"#e0453a"],[/blue|蓝/,"#2f7fd8"],[/green|绿/,"#3fa35a"],[/gold|yellow|金|黄/,"#f4c430"],[/purple|紫/,"#8a5cf0"],[/pink|粉/,"#ff7eb6"],[/white|白/,"#f2f2f2"],[/black|黑/,"#2a2a2a"],[/orange|橙/,"#ff8a2a"],[/teal|cyan|mint|青|薄荷/,"#2ab3b0"]];
+const TOOL_RX = /slider|tune|adjust|myself|control|tool|panel|tweak|joint|bend|pose|angle|调|滑|自己|工具|组件|面板|关节|弯|姿势|角度|说不清/;
+function guessKey(t){
+  for (const p of S.spec.props) if (p.name && t.includes(p.name.toLowerCase())) return "prop:" + p.id;
+  if (/skeleton|dino|骨架|恐龙/.test(t) && skel()) return "prop:" + skel().id;
+  if (/bone|骨头|碎骨/.test(t)) return "bones";
+  if (/water|lake|wave|湖|水|浪/.test(t)) return "water";
+  if (/player|character|explorer|walk|run|角色|玩家|主角|探险|走|跑/.test(t)) return "player";
+  if (/timer|time limit|second|minute|时间|秒|倒计时/.test(t)) return "rules";
+  if (/tree|pine|树|松/.test(t)){ const d = S.spec.props.find(p => p.type === "pine" || p.type === "tree"); if (d) return "prop:" + d.id; }
+  if (/rock|stone|石/.test(t)){ const d = S.spec.props.find(p => p.type === "rock"); if (d) return "prop:" + d.id; }
+  if (/fire|campfire|火/.test(t)){ const d = S.spec.props.find(p => p.id === "camp"); if (d) return "prop:" + d.id; }
+  return "world";
+}
+function ruleInterpret(it){
+  if (it.ref){ const r = it.ref, zh = isZh(r.prompt || r.title || ""), ops = [["world","sky",r.sky],["world","ground",r.ground],["water","color",r.water],["world","timeOfDay",r.tod],["world","fog",r.fog],["bones","beacon",r.accent]].map(([target,param,value]) => ({op:"set", target, param, value}));
+    if ((r.motifs || []).includes("lights")) ops.push({op:"set", target:"fx", param:"fireflies", value:true}, {op:"set", target:"fx", param:"fireflyColor", value:r.accent});
+    return {id:it.id, status:"done", summary: zh ? `按「${r.title}」调整了天空、地面、湖水和光线。` : `Matched the look of “${r.title}”: sky, ground, lake and light.`, ops}; }
+  const t = (it.text + " " + (it.answer || "")).toLowerCase(), zh = isZh(it.text + (it.answer || "")), s = S.spec;
+  const key = (it.key === "global" || it.key === "world") ? guessKey(t) : it.key, T = targetObj(key) || {}, isProp = key.startsWith("prop:"), ops = [], says = [];
+  const set = (k,p,v,en,cn) => { ops.push({op:"set", target:k, param:p, value:v}); says.push(zh ? cn : en); };
+  const nm = labelFor(key), wantsTool = TOOL_RX.test(t);
+  if (/remove|delete|get rid|删|去掉|不要了|拿掉/.test(t) && isProp && T.type !== "skeleton"){ ops.push({op:"removeProp", id:T.id}); says.push(zh ? `删掉了${nm}` : `removed the ${nm}`); }
+  const sizeOp = (mul, en, cn) => { if (isProp) set(key,"scale",T.scale*mul,en,cn); else if (key === "player") set("player","size",s.player.size*mul,en,cn); else if (key === "bones") set("bones","size",s.bones.size*mul,en,cn); else if (key === "water") set("water","radius",s.world.water.radius*mul,en,cn); else set("world","size",s.world.size*mul,en,cn); };
+  if (/bigger|larger|huge|giant|大一|更大|放大|巨大|大点/.test(t) && !/smaller|小/.test(t)) sizeOp(1.3, `made the ${nm} bigger`, `把${nm}放大了`);
+  if (/smaller|tiny|shrink|小一|更小|缩小|小点/.test(t)) sizeOp(.75, `made the ${nm} smaller`, `把${nm}缩小了`);
+  if (key === "bones" && /beacon|bright|glow|亮|光/.test(t)) set("bones","beacon", /gold|金/.test(t) ? "#ffc83d" : "#fff6c2", "made the beacons brighter", "让光柱更亮了");
+  for (const [rx, hex] of COLORS) if (rx.test(t)){
+    if (/sky|天空/.test(t)) set("world","sky",hex,"changed the sky color","换了天空颜色");
+    else if (isProp && T.type === "parts"){ if (it.idx !== undefined) set(key, `parts.${it.idx}.color`, hex, `recolored that part of the ${nm}`, `换了${nm}这部分的颜色`); else { T.parts.forEach((p,i) => ops.push({op:"set", target:key, param:`parts.${i}.color`, value:hex})); says.push(zh ? `换了${nm}的颜色` : `recolored the ${nm}`); } }
+    else if (key === "bones" && /glow|beacon|光/.test(t)) {}
+    else if (isProp || ["player","bones","water"].includes(key)) set(key,"color",hex,`changed the ${nm} color`,`换了${nm}的颜色`);
+    else set("world","ground",hex,"changed the ground color","换了地面颜色");
+    break; }
+  if (/night|夜|晚上/.test(t)) set("world","timeOfDay",.92,"switched to night","切换到夜晚");
+  else if (/sunset|dusk|黄昏|日落|夕阳/.test(t)) set("world","timeOfDay",.5,"set it at sunset","改成黄昏");
+  else if (/daytime|\bday\b|morning|白天|早上/.test(t)) set("world","timeOfDay",.05,"switched to daytime","切换到白天");
+  if (/fog|mist|雾/.test(t)) set("world","fog", /less|no fog|clear|去|少|别/.test(t) ? .03 : .65, "changed the mist", "调整了雾");
+  if (/faster|quicker|speed up|快/.test(t)) set("player","speed",s.player.speed*1.4,"made the explorer faster","让角色走得更快");
+  if (/slower|slow down|慢/.test(t)) set("player","speed",s.player.speed*.7,"made the explorer slower","让角色慢一些");
+  if (/more|多/.test(t) && !/time|时间|firefl|萤火/.test(t)){ const d = isProp && T.count > 1 ? T : s.props.find(p => p.type === "pine"); if (d) set("prop:" + d.id,"count",d.count+8,`added more ${d.name.toLowerCase()}`,`多加了${d.name}`); }
+  if (/more time|longer|easier|多点时间|更长|简单/.test(t)) set("rules","timeLimit",s.rules.timeLimit+30,"gave 30 more seconds","多给了 30 秒");
+  if (/harder|shorter|less time|难|更短/.test(t)) set("rules","timeLimit",s.rules.timeLimit-30,"cut 30 seconds","减少了 30 秒");
+  if (isProp && /raise|higher|float|lift|抬|浮|高一|露出/.test(t)) set(key,"y",T.y+1,`raised the ${nm}`,`把${nm}抬高了`);
+  if (isProp && /lower|sink|deeper|沉|低一|下沉/.test(t)) set(key,"y",T.y-.8,`sank the ${nm} deeper`,`让${nm}沉得更深`);
+  if (isProp && /rotate|turn|face|转|朝/.test(t)) set(key,"rot",((T.rot + 225) % 360) - 180,`turned the ${nm}`,`转了${nm}的方向`);
+  if (isProp && T.type === "skeleton" && /glow|shine|发光|亮/.test(t)) set(key,"params.glow",.75,"made the bones glow","让骨头发光");
+  if (/firefl|萤火/.test(t)) set("fx","fireflies",true,"added fireflies","加了萤火虫");
+  if (/sparkle|trail|拖尾|闪光/.test(t)) set("fx","trail",true,"added a sparkle trail behind the explorer","给角色加了闪光拖尾");
+  const tool = wantsTool ? defaultTool(key, zh) : null;
+  if (!ops.length && !tool){
+    if (/add|加一|加个|放一|create|new|新/.test(t)) return {id:it.id, status:"unsupported", summary: zh ? "离线规则不会设计新物体。左侧 Assets 里可以直接放，或在聊天里切到 Claude live 再试。" : "Offline rules can't design new objects. Place one from Assets on the left, or switch to Claude live in the chat and try again.", ops:[]};
+    return {id:it.id, status:"question", summary: zh ? "这条我还拿不准。" : "Not sure what to change yet.", ops:[],
+      question: zh ? {text:`想怎么改${nm}？`, options:["大一点","换个颜色","给我一个能自己调的工具"]} : {text:`What should change about the ${nm}?`, options:["Make it bigger","Different color","Give me a tool to tune it myself"]}};
+  }
+  if (tool) says.push(zh ? `做了一个「${tool.title}」，你可以自己拖` : `built a “${tool.title}” so you can tune it by hand`);
+  const sum = says.join(zh ? "，" : ", "); return {id:it.id, status:"done", summary: zh ? sum + "。" : cap(sum) + ".", ops, tool};
+}
+function defaultTool(key, zh){
+  const T = targetObj(key), nm = labelFor(key);
+  if (key.startsWith("prop:") && T.type === "skeleton") return {title: zh ? `${nm}姿态调节器` : "Skeleton pose tuner", target:key, controls:[
+    {label: zh ? "整体大小" : "Overall size", target:key, param:"scale", min:.6, max:3},
+    {label: zh ? "倒塌 ↔ 站立" : "Collapsed ↔ standing", binds:[["ribClose",.1,.95],["neckLift",-.4,1.15],["tailCurl",-.2,1.1],["legSplay",.95,.12],["spineArch",-.3,.55]].map(([p,f,to]) => ({target:key, param:"params."+p, from:f, to}))},
+    ...["neckLift","neckCurve","ribClose","tailCurl","tailSide","jawOpen","legSplay"].map(p => ({label: zh ? {neckLift:"脖子抬起",neckCurve:"脖子弯曲",ribClose:"肋骨闭合",tailCurl:"尾巴卷曲",tailSide:"尾巴摆向",jawOpen:"嘴张开",legSplay:"腿张开"}[p] : SKEL[p][3], target:key, param:"params."+p})),
+    {label: zh ? "露出水面" : "Height above water", target:key, param:"y", min:-2, max:2}]};
+  if (key.startsWith("prop:") && T.type === "parts"){
+    const cs = [{label: zh ? "整体大小" : "Overall size", target:key, param:"scale"}, {label: zh ? "朝向" : "Facing", target:key, param:"rot"}];
+    const named = T.parts.map((p,i) => ({p,i})).filter(x => x.p.name).slice(0,5);
+    if (named.length > 1) cs.push({label: zh ? "所有部件倾斜" : "Lean all parts", binds:named.map(x => ({target:key, param:`parts.${x.i}.rz`, from:x.p.rz - 25, to:x.p.rz + 25}))});
+    named.forEach(x => cs.push({label: `${x.p.name} ${zh ? "角度" : "angle"}`, target:key, param:`parts.${x.i}.rz`, min:-90, max:90}));
+    return {title: zh ? `${nm}调节器` : `${nm} tuner`, target:key, controls:cs.slice(0,8)};
+  }
+  const o = T || {}; const cs = Object.keys(o).filter(p => typeof o[p] === "number" || HEX.test(o[p])).filter(p => clampVal(key,p,o[p]) !== null).map(p => ({label:p, target:key, param:p}));
+  return {title: zh ? `${nm}调节器` : `${nm} tuner`, target:key, controls:cs.slice(0,8)};
+}
+
+/* ═════════════ Assets panel ═════════════ */
+const ICON = {
+  pine:`<path d="M17 4l7 10h-4l6 9H8l6-9h-4z" fill="#3f7a45"/><rect x="15.5" y="23" width="3" height="6" fill="#6b4a2f"/>`,
+  tree:`<circle cx="17" cy="13" r="8" fill="#5f9a48"/><rect x="15.5" y="19" width="3" height="10" fill="#6b4a2f"/>`,
+  rock:`<path d="M6 27l4-10 7-4 8 5 3 9z" fill="#8a8f96"/>`,
+  crystal:`<path d="M17 4l5 11-5 14-5-14z" fill="#7fd6ff"/><path d="M9 14l3 6-3 8-3-8z" fill="#5bbbe8"/>`,
+  bush:`<circle cx="11" cy="21" r="6" fill="#4f8a3c"/><circle cx="18" cy="18" r="7" fill="#5f9a48"/><circle cx="24" cy="22" r="5" fill="#4f8a3c"/>`,
+  house:`<rect x="9" y="16" width="16" height="12" fill="#efe6d6"/><path d="M6 17l11-9 11 9z" fill="#b5523b"/><rect x="15" y="21" width="4" height="7" fill="#6b4a2f"/>`,
+  camp:`<path d="M17 7c4 5 6 8 6 12a6 6 0 01-12 0c0-4 2-7 6-12z" fill="#ff8a2a"/><path d="M17 14c2 3 3 4 3 6a3 3 0 01-6 0c0-2 1-3 3-6z" fill="#ffd34d"/><path d="M7 28l20-4M7 24l20 4" stroke="#6b4a2f" stroke-width="3" stroke-linecap="round"/>`,
+  tent:`<path d="M17 6l11 22H6z" fill="#d9a441"/><path d="M17 16l4 12h-8z" fill="#5c3a22"/>`};
+const ASSETS = [{name:"Pine", icon:"pine", prop:{type:"pine", color:"#3f7a45"}}, {name:"Tree", icon:"tree", prop:{type:"tree", color:"#5f9a48"}}, {name:"Rock", icon:"rock", prop:{type:"rock", color:"#8a8f96"}},
+  {name:"Crystal", icon:"crystal", prop:{type:"crystal", color:"#7fd6ff"}}, {name:"Bush", icon:"bush", prop:{type:"bush", color:"#4f8a3c"}}, {name:"Hut", icon:"house", prop:{type:"house", color:"#b5523b"}},
+  {name:"Campfire", icon:"camp", prop:{type:"parts", color:"#6b4a2f", parts:CAMP}}, {name:"Tent", icon:"tent", prop:{type:"parts", color:"#d9a441", parts:TENT}}];
+let placeN = 0;
+function frontOfPlayer(dist){ const p = ROOT.player.position, side = [0,-3,3,-6,6][placeN++ % 5]; return {x:p.x - Math.sin(camYaw)*dist + Math.cos(camYaw)*side, z:p.z - Math.cos(camYaw)*dist - Math.sin(camYaw)*side}; }
+function placeAsset(a){
+  const before = clone(S.spec), at = frontOfPlayer(7.5), used = new Set(S.spec.props.map(p => p.id));
+  const p = sanitizeProp(Object.assign({id:a.icon + (++uid), name:a.name, role:"decor", count:1, x:at.x, z:at.z, rot:Math.round(Math.random()*360 - 180), scale:1}, clone(a.prop)), used);
+  S.spec.props.push(p); S.dirty.add("prop:" + p.id); setTimeout(() => popIn(propGroups.get(p.id)), 40);
+  pushHistory(`Placed ${a.name}`, before, 1); paintNotes(); toast(`<b>${a.name}</b> placed. Press <kbd>C</kbd> and click it to change it.`, 2400);
+}
+function makeAsset(text){
+  const n = createNode("asset", {prompt:text}); runNode(n);
+  const t = toast(`Wana is making <b>${esc(text)}</b> next to the game. Keep playing.<div class="row"><button class="btn sm" data-sh>Show</button></div>`, 4500);
+  t.querySelector("[data-sh]").onclick = () => { t.remove(); focusNode(n); };
+}
+
+/* ═════════════ Tools: AI-written control panels ═════════════ */
+function validControls(list){
+  return (Array.isArray(list) ? list : []).map(cn => {
+    if (cn && Array.isArray(cn.binds)){ const binds = cn.binds.filter(b => b && typeof getPath(String(b.target), String(b.param)) === "number").map(b => ({target:String(b.target), param:String(b.param), from:clampVal(String(b.target), String(b.param), b.from), to:clampVal(String(b.target), String(b.param), b.to)})).filter(b => b.from !== null && b.to !== null); return binds.length ? {label:String(cn.label || "Macro"), binds} : null; }
+    if (cn && cn.target && typeof getPath(String(cn.target), String(cn.param)) !== "boolean" && clampVal(String(cn.target), String(cn.param), getPath(String(cn.target), String(cn.param))) !== null){ const key = String(cn.target), path = String(cn.param), out = {label:String(cn.label || paramLabel(key, path)), target:key, param:path};
+      if (typeof getPath(key, path) === "number"){ const [lo,hi] = rangeFor(key, path); out.min = cn.min !== undefined && isFinite(cn.min) ? clamp(+cn.min, lo, hi) : lo; out.max = cn.max !== undefined && isFinite(cn.max) ? clamp(+cn.max, lo, hi) : hi; if (!(out.max > out.min)){ out.min = lo; out.max = hi; } } return out; }
+    return null;
+  }).filter(Boolean).slice(0, 10);
+}
+function makeTool(spec, it){
+  const controls = validControls(spec.controls); if (!controls.length) return null;
+  const target = String(spec.target || controls[0].target || controls[0].binds[0].target);
+  const tool = {id:nid("t"), title:String(spec.title || `${labelFor(target)} tuner`), target, controls, from:it ? it.text : "", initial:clone(S.spec), open:true, code:false};
+  S.tools.forEach(t => t.open = false); S.tools.push(tool); paintTools(); return tool;
+}
+function macroValue(cn){ const b = cn.binds[0], v = getPath(b.target, b.param); return clamp((v - b.from)/((b.to - b.from) || 1), 0, 1); }
+function stepFor(cn){ const r = cn.max - cn.min; return r > 50 ? 1 : r > 5 ? .1 : .01; }
+function toolCode(tool){
+  const ln = tool.controls.map(cn => cn.binds ? `    macro(${JSON.stringify(cn.label)}, [\n${cn.binds.map(b => `      [${JSON.stringify(b.target + "." + b.param)}, ${fmt(b.from)}, ${fmt(b.to)}]`).join(",\n")}\n    ])` : typeof getPath(cn.target, cn.param) === "string" ? `    color(${JSON.stringify(cn.label)}, ${JSON.stringify(cn.target + "." + cn.param)})` : `    slider(${JSON.stringify(cn.label)}, ${JSON.stringify(cn.target + "." + cn.param)}, ${fmt(cn.min)}, ${fmt(cn.max)})`);
+  return `// Written by Wana${tool.from ? ` for: "${tool.from.slice(0,70)}"` : ""}\nexport default defineTool({\n  title: ${JSON.stringify(tool.title)},\n  target: ${JSON.stringify(tool.target)},\n  controls: [\n${ln.join(",\n")}\n  ]\n});`;
+}
+async function editTool(tool, text){
+  toast(`Wana is updating <b>${esc(tool.title)}</b>…`, 2200); let spec = null;
+  try { spec = await askJSON(`You maintain a small control panel ("tool") in a game editor. Current tool JSON:\n${JSON.stringify({title:tool.title, target:tool.target, controls:tool.controls})}\n\nThe object it controls (${tool.target}):\n${JSON.stringify(targetObj(tool.target))}\n\nThe person asks: """${text}"""\nReturn the FULL updated tool. Controls are {"label","target","param"} (optional "min","max") or macros {"label","binds":[{"target","param","from","to"}]}; params are dotted paths that exist in the object (e.g. "parts.2.rz", "params.jawOpen"). Labels in the person's language. Reply with only JSON: {"title":"...","target":"...","controls":[...]}`, "quick"); } catch(e){ await sleep(400); }
+  let controls = spec ? validControls(spec.controls) : [];
+  if (!controls.length){
+    const low = text.toLowerCase(), T = targetObj(tool.target), add = [];
+    if (T?.type === "parts") T.parts.forEach((p,i) => { if (p.name && low.includes(p.name.toLowerCase())) add.push({label:`${p.name} angle`, target:tool.target, param:`parts.${i}.rz`, min:-90, max:90}, {label:`${p.name} color`, target:tool.target, param:`parts.${i}.color`}); });
+    if (T?.type === "skeleton") for (const k in SKEL) if (low.includes(k.toLowerCase()) || low.includes(SKEL[k][3].toLowerCase().split(" ")[0]) || (/jaw|嘴/.test(low) && k === "jawOpen") || (/skull|头/.test(low) && k === "skullTilt") || (/rib|肋/.test(low) && k === "ribSize") || (/tail|尾/.test(low) && k === "tailLength") || (/glow|光/.test(low) && k === "glow") || (/spine|背|脊/.test(low) && k === "spineArch")) add.push({label:SKEL[k][3], target:tool.target, param:"params."+k});
+    if (/color|颜色/.test(low) && T && HEX.test(T.color || "")) add.push({label:"Color", target:tool.target, param:"color"});
+    controls = validControls(tool.controls.concat(add.filter(a => !tool.controls.some(cn => cn.target === a.target && cn.param === a.param))));
+    if (controls.length === tool.controls.length){ toast(isZh(text) ? "离线规则没看懂，试试说出部位，比如“加一个控制尾巴的滑杆”。" : "The offline rules didn't catch that. Try naming a part, like “add a slider for the tail”."); return; }
+  }
+  tool.controls = controls; if (spec?.title) tool.title = String(spec.title); renderPanel(); toast(`<b>${esc(tool.title)}</b> updated: ${controls.length} controls.`);
+}
+/* ═════════════ Side panels: Assets · Tools (Wanaka's ready-made parts) · Made by Wana ═════════════ */
+const SV = (d, extra) => `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"${extra || ""}>${d}</svg>`;
+const TI = {
+  hand:`<path d="M7 10.5V4.8a1.3 1.3 0 012.6 0V9.5M9.6 9V3.8a1.3 1.3 0 012.6 0V9.5M12.2 9.2V5.3a1.3 1.3 0 012.6 0v6.2c0 3.2-2.2 5.5-5 5.5-2.2 0-3.6-1.2-4.6-3l-1.5-2.7a1.3 1.3 0 012.2-1.3L7 11.5"/>`,
+  target:`<circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3.6"/><circle cx="10" cy="10" r=".7" fill="currentColor"/>`,
+  timer:`<circle cx="10" cy="11" r="6.5"/><path d="M10 7.5V11l2.4 1.6M8 2.5h4"/>`,
+  player:`<circle cx="10" cy="5.5" r="2.8"/><path d="M4.5 17.5c.6-3.6 2.7-5.6 5.5-5.6s4.9 2 5.5 5.6"/>`,
+  camera:`<path d="M3 7h3l1.5-2h5L14 7h3v9H3z"/><circle cx="10" cy="11.2" r="2.8"/>`,
+  sun:`<circle cx="10" cy="10" r="3.4"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.3 4.3l1.4 1.4M14.3 14.3l1.4 1.4M4.3 15.7l1.4-1.4M14.3 5.7l1.4-1.4"/>`,
+  water:`<path d="M2 8c2-1.6 4-1.6 6 0s4 1.6 6 0 3-1.2 4-.8M2 12.5c2-1.6 4-1.6 6 0s4 1.6 6 0 3-1.2 4-.8"/>`,
+  beacon:`<path d="M7.5 3h5l1.5 11h-8z"/><path d="M4 17h12"/>`,
+  fireflies:`<circle cx="5" cy="6" r="1.4"/><circle cx="14" cy="4.5" r="1"/><circle cx="11" cy="11" r="1.7"/><circle cx="4.5" cy="14.5" r="1"/><circle cx="15.5" cy="15" r="1.3"/>`,
+  trail:`<path d="M3 16c3 0 4-3 6-6s4-5 8-5" stroke-dasharray="1.5 2.6"/><circle cx="17" cy="5" r="1.6" fill="currentColor"/>`,
+  spin:`<path d="M16 10a6 6 0 11-1.8-4.3"/><path d="M16 3.5v3h-3"/>`,
+  float:`<path d="M10 3v8M7 6l3-3 3 3"/><path d="M3 16c1.5-1.2 3-1.2 4.5 0s3 1.2 4.5 0 3-1.2 4.5 0"/>`,
+  wand:`<path d="M3.5 16.5l9-9"/><path d="M14.5 2.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z" fill="currentColor" stroke="none"/><path d="M6.5 3.5l.4 1 1 .4-1 .4-.4 1-.4-1-1-.4 1-.4z" fill="currentColor" stroke="none"/>`,
+  cube:`<path d="M10 2.5l6.5 3.7v7.6L10 17.5l-6.5-3.7V6.2z"/><path d="M3.5 6.2L10 10l6.5-3.8M10 10v7.5"/>`,
+  back:`<path d="M12 4l-6 6 6 6"/>`, x:`<path d="M5 5l10 10M15 5L5 15"/>`, code:`<path d="M7 5l-4 5 4 5M13 5l4 5-4 5"/>`
+};
+const tico = n => SV(TI[n] || TI.cube);
+const ico = (n, px) => SV(TI[n], ` width="${px}" height="${px}"`);
+
+/* the catalog: parts Wanaka ships, each wired to settings in the scene spec */
+const CATALOG = [
+  {id:"pickup", cat:"Gameplay", name:"Pickup & Carry", icon:"hand", used:"the 6 bones", desc:"Walk into an item to pick it up and carry it over your head, one at a time.",
+    ctl:[{label:"Pickup radius", target:"rules", param:"pickupRadius"}, {label:"Item size", target:"bones", param:"size"}, {label:"Item color", target:"bones", param:"color"}]},
+  {id:"drop", cat:"Gameplay", name:"Drop Zone", icon:"target", used:"the skeleton", desc:"An area that takes what you carry. A ring shows where it is while you hold something.",
+    ctl:[{label:"Zone radius", target:"rules", param:"dropRadius"}]},
+  {id:"timer", cat:"Gameplay", name:"Countdown Timer", icon:"timer", used:"the round", desc:"Ends the round when time runs out and shows the clock in the HUD.",
+    ctl:[{label:"Time limit (s)", target:"rules", param:"timeLimit"}]},
+  {id:"player", cat:"Gameplay", name:"Player Controller", icon:"player", used:"the explorer", desc:"WASD or click to move. Slows down in water.",
+    ctl:[{label:"Walk speed", target:"player", param:"speed"}, {label:"Size", target:"player", param:"size"}, {label:"Jacket color", target:"player", param:"color"}]},
+  {id:"cam", cat:"Camera", name:"Follow Camera", icon:"camera", used:"the explorer", desc:"Stays behind the player. Drag to orbit, scroll to zoom.",
+    ctl:[{label:"Distance", target:"camera", param:"distance"}, {label:"Height", target:"camera", param:"height"}]},
+  {id:"sky", cat:"World", name:"Sky & Time of Day", icon:"sun", used:"the world", desc:"Sky color, sun and fog that move from day to night.",
+    ctl:[{label:"Time of day", target:"world", param:"timeOfDay"}, {label:"Fog", target:"world", param:"fog"}, {label:"Sky color", target:"world", param:"sky"}]},
+  {id:"water", cat:"World", name:"Water Body", icon:"water", used:"the lake", desc:"A lake with gentle waves. Walking through it slows you down.",
+    ctl:[{label:"Radius", target:"water", param:"radius"}, {label:"Color", target:"water", param:"color"}]},
+  {id:"beacon", cat:"Effects", name:"Light Beacon", icon:"beacon", used:"the 6 bones", desc:"A soft beam and a ground ring so items are easy to spot from far away.",
+    ctl:[{label:"Beam color", target:"bones", param:"beacon"}]},
+  {id:"fireflies", cat:"Effects", name:"Fireflies", icon:"fireflies", fx:"fireflies", desc:"Small glowing lights drifting around the world. Nice at dusk.",
+    ctl:[{label:"How many", target:"fx", param:"fireflyCount"}, {label:"Color", target:"fx", param:"fireflyColor"}]},
+  {id:"trail", cat:"Effects", name:"Sparkle Trail", icon:"trail", fx:"trail", desc:"Sparkles that follow the player around.",
+    ctl:[{label:"Color", target:"fx", param:"trailColor"}]},
+  {id:"spin", cat:"Motion", name:"Spin", icon:"spin", attach:"spin", desc:"Keeps an object turning in place. Attach it to any single object."},
+  {id:"float", cat:"Motion", name:"Float", icon:"float", attach:"float", desc:"Makes an object bob up and down. Attach it to any single object."}
+];
+const CATS = ["Gameplay","Camera","World","Effects","Motion"];
+const inUse = c => c.fx ? !!S.spec.fx[c.fx] : c.attach ? S.spec.behaviors.some(b => b.type === c.attach) : true;
+
+/* one set of slider rows for every panel; CTLS is rebuilt on each render */
+let CTLS = [];
+function ctlRow(cn){
+  const k = CTLS.push(cn) - 1;
+  if (cn.binds){ const v = macroValue(cn); return `<div class="ctl"><div class="cl"><span>${esc(cn.label)}<span class="mac">macro · ${cn.binds.length}</span></span><span data-v="${k}">${v.toFixed(2)}</span></div><input type="range" min="0" max="1" step="0.01" value="${v}" data-k="${k}" aria-label="${esc(cn.label)}"></div>`; }
+  const v = getPath(cn.target, cn.param); if (v === undefined) return "";
+  if (typeof v === "string") return `<div class="ctl"><div class="cl"><span>${esc(cn.label)}</span><span data-v="${k}">${esc(v)}</span></div><input type="color" value="${v}" data-k="${k}" aria-label="${esc(cn.label)}"></div>`;
+  return `<div class="ctl"><div class="cl"><span>${esc(cn.label)}</span><span data-v="${k}">${fmt(v)}</span></div><input type="range" min="${cn.min}" max="${cn.max}" step="${stepFor(cn)}" value="${v}" data-k="${k}" aria-label="${esc(cn.label)}"></div>`;
+}
+function bindCtls(root){
+  root.querySelectorAll("input[data-k]").forEach(inp => inp.oninput = () => { const cn = CTLS[+inp.dataset.k]; if (!cn) return;
+    if (cn.binds) cn.binds.forEach(b => setParam(b.target, b.param, lerp(b.from, b.to, +inp.value), false)); else setParam(cn.target, cn.param, inp.type === "color" ? inp.value : +inp.value, false);
+    syncOpenTools(inp); });
+}
+function syncOpenTools(skip){
+  if (!S.panel) return; const root = $("#spanel");
+  CTLS.forEach((cn,k) => { const inp = root.querySelector(`input[data-k="${k}"]`), lab = root.querySelector(`[data-v="${k}"]`); if (!inp) return;
+    const v = cn.binds ? macroValue(cn) : getPath(cn.target, cn.param); if (v === undefined) return;
+    if (inp !== skip) inp.value = v; if (lab) lab.textContent = cn.binds ? (+v).toFixed(2) : fmt(v); });
+}
+
+/* panel shell */
+function panelShell(title, sub, body, foot, back){
+  return `<div class="phead">${back ? `<button class="iconbtn back" data-back aria-label="Back to all tools">${ico("back", 16)}</button>` : ""}<div class="pt"><b>${title}</b>${sub ? `<span>${sub}</span>` : ""}</div><button class="iconbtn" data-pclose aria-label="Close panel">${ico("x", 14)}</button></div>`
+    + `<div class="pbody">${body}</div>` + (foot ? `<div class="pfoot">${foot}</div>` : "");
+}
+function setPanel(p){ S.panel = S.panel === p ? null : p; $("#coach").hidden = true; renderPanel(); }
+function renderPanel(){
+  const el = $("#spanel"), sig = S.panel + ":" + (S.panel === "tools" ? S.catSel || "" : ""), keep = el.dataset.sig === sig ? (el.querySelector(".pbody")?.scrollTop || 0) : 0;
+  document.querySelectorAll("#side [data-panel]").forEach(b => { const on = b.dataset.panel === S.panel; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
+  CTLS = []; if (!S.panel){ el.hidden = true; el.dataset.sig = ""; return; }
+  el.hidden = false; ({assets:paintAssetsPanel, tools:paintCatalog, wana:paintWana})[S.panel](el); el.dataset.sig = sig;
+  el.querySelector("[data-pclose]").onclick = () => setPanel(S.panel);
+  bindCtls(el); el.querySelector(".pbody").scrollTop = keep;
+}
+document.querySelectorAll("#side [data-panel]").forEach(b => b.onclick = () => setPanel(b.dataset.panel));
+const madeAssets = () => S.made.filter(m => S.spec.props.some(p => p.id === m.id));
+function updateBadge(bump){ const n = S.tools.length + madeAssets().length, b = $("#wanaCount"); b.hidden = !n; b.textContent = n; if (bump && n){ b.classList.remove("bump"); void b.offsetWidth; b.classList.add("bump"); } }
+function paintTools(){ updateBadge(true); if (S.panel === "wana") renderPanel(); }
+
+/* Assets */
+function paintAssetsPanel(el){
+  el.innerHTML = panelShell("Assets", "Ready-made models",
+    `<div class="agrid">${ASSETS.map((a,i) => `<button class="asset" data-asset="${i}" title="Place a ${a.name.toLowerCase()} in front of the explorer"><svg viewBox="0 0 34 34" aria-hidden="true">${ICON[a.icon]}</svg>${a.name}</button>`).join("")}</div>
+     <div class="small muted" style="margin-top:12px">Click one to place it in front of the explorer, then press <kbd>C</kbd> and click it to change it.</div>`,
+    `<form class="finput" id="genForm"><input id="genIn" placeholder="Describe a new asset…" autocomplete="off" aria-label="Describe a new asset"><button class="btn sm" type="submit">Make</button></form><div class="small muted" style="margin-top:6px">Wana makes it in a node on the canvas while you keep playing.</div>`);
+  el.querySelectorAll("[data-asset]").forEach(b => b.onclick = () => placeAsset(ASSETS[+b.dataset.asset]));
+  $("#genForm").onsubmit = e => { e.preventDefault(); const t = $("#genIn").value.trim(); if (t){ $("#genIn").value = ""; makeAsset(t); } };
+}
+
+/* Tools: Wanaka's catalog */
+function paintCatalog(el){
+  const c = CATALOG.find(x => x.id === S.catSel);
+  if (!c){
+    el.innerHTML = panelShell("Tools", "Ready-made parts from Wanaka",
+      `<div class="small muted">Gameplay pieces, cameras and effects that already work. Open one to tune it or add it to this game.</div>`
+      + CATS.map(cat => `<div class="sect">${cat}</div><div class="clist">${CATALOG.filter(x => x.cat === cat).map(x => `<button class="pcard" data-cat="${x.id}"><span class="pic">${tico(x.icon)}</span><span class="pt2"><b>${x.name}</b><span>${esc(x.desc)}</span></span>${inUse(x) ? `<span class="inuse">In use</span>` : `<span class="addtag">${x.attach ? "Attach" : "Add"}</span>`}</button>`).join("")}</div>`).join(""));
+    el.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { S.catSel = b.dataset.cat; renderPanel(); });
+    return;
+  }
+  const on = inUse(c), ctls = validControls(c.ctl || []);
+  let body = `<div class="dhead"><span class="pic big">${tico(c.icon)}</span><p class="desc">${esc(c.desc)}</p></div>`;
+  if (c.used) body += `<div class="row"><span class="inuse">In use</span><span class="small muted">on ${esc(c.used)}</span></div>`;
+  if (c.fx) body += `<div class="row">${on ? `<span class="inuse">In use</span><button class="btn sm" data-fx="off">Remove from game</button>` : `<button class="btn sm primary" data-fx="on">Add to game</button>`}</div>`;
+  if (c.attach){
+    const list = S.spec.behaviors.map((b,i) => ({b,i})).filter(x => x.b.type === c.attach && targetObj(x.b.target));
+    body += `<button class="btn sm primary" data-attach ${S.attach === c.attach ? "disabled" : ""}>${S.attach === c.attach ? "Now click an object in the game…" : list.length ? "Attach to another object" : "Attach to an object"}</button>`;
+    if (list.length) body += `<div class="sect">Attached to</div>` + list.map(x => `<div class="att">${ctlRow({label:`${labelFor(x.b.target)} · speed`, target:"behaviors", param:`${x.i}.speed`, min:.1, max:4})}<button class="iconbtn" data-detach="${x.i}" aria-label="Detach from ${esc(labelFor(x.b.target))}">${ico("x", 13)}</button></div>`).join("");
+  }
+  if (ctls.length) body += `<div class="sect">Settings</div>` + (c.fx && !on ? `<div class="small muted">Add it to the game to tune it.</div>` : ctls.map(ctlRow).join(""));
+  body += `<div class="small muted" style="margin-top:18px">Need something this can't do? Ask Wana for a tool and it writes one for this game.</div>`;
+  el.innerHTML = panelShell(c.name, c.cat, body, "", true);
+  el.querySelector("[data-back]").onclick = () => { S.catSel = null; renderPanel(); };
+  el.querySelector("[data-fx]")?.addEventListener("click", e => toggleFx(c, e.currentTarget.dataset.fx === "on"));
+  el.querySelector("[data-attach]")?.addEventListener("click", () => startAttach(c.attach));
+  el.querySelectorAll("[data-detach]").forEach(b => b.onclick = () => detach(+b.dataset.detach));
+}
+function toggleFx(c, on){
+  const before = clone(S.spec); setParam("fx", c.fx, on, false); pushHistory(`${on ? "Added" : "Removed"} ${c.name}`, before, 1); paintNotes();
+  toast(on ? `<b>${c.name}</b> added. Tune it under Settings.` : `<b>${c.name}</b> removed.`, 2200); renderPanel();
+}
+function startAttach(type){ S.attach = type; setMode("play"); renderPanel(); }
+function cancelAttach(){ S.attach = null; $("#hovertag").hidden = true; highlight(null); setMode(S.mode); if (S.panel === "tools") renderPanel(); }
+function finishAttach(p){
+  const type = S.attach, T = p.key.startsWith("prop:") ? targetObj(p.key) : null;
+  if (!T || (DECOR.includes(T.type) && (T.count || 1) > 1)){ toast(`${cap(type)} goes on one object. Try the skeleton, the campfire, or something you placed.`, 3000); return; }
+  const before = clone(S.spec); S.spec.behaviors.push({type, target:p.key, speed:1}); pushHistory(`${cap(type)} on ${T.name}`, before, 1); paintNotes(); flashKey(p.key);
+  toast(`<b>${cap(type)}</b> attached to ${esc(T.name)}.`, 2200); cancelAttach();
+}
+function detach(i){
+  const b = S.spec.behaviors[i]; if (!b) return; const before = clone(S.spec);
+  S.spec.behaviors.splice(i, 1); S.dirty.add(b.target); pushHistory(`Removed ${cap(b.type)} from ${labelFor(b.target)}`, before, 1); paintNotes(); renderPanel();
+}
+
+/* Made by Wana: every tool and asset Wana wrote for this game, in one place */
+function paintWana(el){
+  const made = madeAssets();
+  let body = `<div class="sect" style="margin-top:0">Tools · ${S.tools.length}</div>`;
+  body += S.tools.length ? S.tools.map(t => { const zh = isZh(t.title + t.from);
+    return `<div class="wtool ${t.open ? "open" : ""}" id="w-${t.id}"><button class="wth" data-wt="${t.id}" aria-expanded="${t.open}"><span class="pic wana">${tico("wand")}</span><span class="wtt"><b>${esc(t.title)}</b><span>${esc(labelFor(t.target))} · ${t.controls.length} controls</span></span><span class="chev">›</span></button>`
+      + (t.open ? `<div class="wtb">${t.from ? `<div class="from">From your note: “${esc(t.from)}”</div>` : ""}${t.code ? `<pre>${esc(toolCode(t))}</pre>` : t.controls.map(ctlRow).join("")}</div>
+        <div class="wtf"><input data-ask="${t.id}" placeholder="${zh ? "让 Wana 改这个工具…" : "Ask Wana to change it…"}" aria-label="Ask Wana to change this tool" autocomplete="off"><button class="iconbtn ${t.code ? "on" : ""}" data-code="${t.id}" title="Show the tool's code" aria-label="Toggle code">${ico("code", 16)}</button><button class="btn sm" data-reset="${t.id}">${zh ? "重置" : "Reset"}</button></div>` : "")
+      + `</div>`; }).join("")
+    : `<div class="empty">Nothing yet. When a change is hard to put into words, like how far a joint should bend, ask for a tool and Wana writes one here.</div>`;
+  body += `<div class="sect">Assets · ${made.length}</div>` + (made.length ? made.map(m => `<div class="pcard"><span class="pic wana">${tico("cube")}</span><span class="pt2"><b>${esc(m.name)}</b><span>${m.parts} parts · “${esc(m.from)}”</span></span><button class="btn sm" data-find="${m.id}">Show</button><button class="iconbtn" data-rm="${m.id}" aria-label="Remove ${esc(m.name)}">${ico("x", 13)}</button></div>`).join("")
+    : `<div class="empty">Make a 3D asset on the canvas and place it in the game. It lands here.</div>`);
+  el.innerHTML = panelShell("Made by Wana", "Tools and assets written for this game", body,
+    `<form class="finput" id="wanaForm"><input id="wanaIn" placeholder="Ask for a tool, e.g. sliders for the tail" autocomplete="off" aria-label="Ask Wana for a tool"><button class="btn sm primary" type="submit">Ask</button></form>`);
+  el.querySelectorAll("[data-wt]").forEach(b => b.onclick = () => { const t = S.tools.find(x => x.id === b.dataset.wt); if (t){ t.open = !t.open; renderPanel(); } });
+  el.querySelectorAll("[data-code]").forEach(b => b.onclick = () => { const t = S.tools.find(x => x.id === b.dataset.code); if (t){ t.code = !t.code; renderPanel(); } });
+  el.querySelectorAll("[data-reset]").forEach(b => b.onclick = () => { const tool = S.tools.find(x => x.id === b.dataset.reset); if (!tool) return;
+    tool.controls.forEach(cn => (cn.binds || [cn]).forEach(bd => { const save = S.spec; S.spec = tool.initial; const v = getPath(bd.target, bd.param); S.spec = save; if (v !== undefined) setParam(bd.target, bd.param, v, true); })); });
+  el.querySelectorAll("[data-ask]").forEach(inp => inp.onkeydown = e => { const tool = S.tools.find(x => x.id === inp.dataset.ask); if (e.key === "Enter" && tool && inp.value.trim()){ editTool(tool, inp.value.trim()); inp.value = ""; } });
+  el.querySelectorAll("[data-find]").forEach(b => b.onclick = () => { const key = "prop:" + b.dataset.find; highlight(key); setTimeout(() => { if (hiKey === key) highlight(null); }, 1500); });
+  el.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { const p = S.spec.props.find(x => x.id === b.dataset.rm); if (!p) return; const before = clone(S.spec);
+    S.spec.props = S.spec.props.filter(x => x.id !== p.id); S.dirty.add("props"); pushHistory(`Removed ${p.name}`, before, 1); paintNotes(); updateBadge(); renderPanel(); toast(`Removed <b>${esc(p.name)}</b>. Undo it from the notes list.`, 2600); });
+  $("#wanaForm").onsubmit = e => { e.preventDefault(); const t = $("#wanaIn").value.trim(); if (!t) return; $("#wanaIn").value = "";
+    const low = t.toLowerCase(), key = guessKey(low) === "world" && skel() ? "prop:" + skel().id : guessKey(low);
+    const it = addNote(key, null, undefined, TOOL_RX.test(low) ? t : t + " (make me a tool)", null); runNotes([it], "chat"); };
+}
+function openTool(id){
+  const tool = S.tools.find(t => t.id === id); if (!tool) return; S.tools.forEach(t => t.open = t === tool); tool.code = false; S.panel = "wana"; renderPanel();
+  const card = document.getElementById("w-" + id); if (card){ card.scrollIntoView({block:"nearest"}); card.classList.remove("flash"); void card.offsetWidth; card.classList.add("flash"); }
+}
+
+/* ═════════════ Effects & behaviors from the catalog ═════════════ */
+let fxFire = null, fxTrail = null;
+const dropRing = new THREE.Mesh(new THREE.RingGeometry(.94, 1, 64), new THREE.MeshBasicMaterial({color:0xffd27a, transparent:true, opacity:.5, side:THREE.DoubleSide, depthWrite:false}));
+dropRing.rotation.x = -Math.PI/2; dropRing.visible = false; scene.add(dropRing);
+function dropObj(o){ if (o){ scene.remove(o); o.geometry.dispose(); o.material.dispose(); } }
+function buildFx(){
+  dropObj(fxFire); dropObj(fxTrail); fxFire = fxTrail = null; const f = S.spec.fx;
+  const glow = (c, extra) => new THREE.PointsMaterial(Object.assign({color:c, size:.32, transparent:true, opacity:.9, depthWrite:false, blending:THREE.AdditiveBlending}, extra || {}));
+  if (f.fireflies){ const n = f.fireflyCount, r = mulberry(11), R = S.spec.world.size, seed = [];
+    for (let i=0;i<n;i++){ const a = r()*Math.PI*2, d = 3 + r()*R; seed.push({x:Math.cos(a)*d, z:Math.sin(a)*d, y:.6 + r()*2.8, p:r()*6.28, s:.4 + r()*.7}); }
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n*3), 3));
+    fxFire = new THREE.Points(g, glow(f.fireflyColor)); fxFire.userData.seed = seed; fxFire.frustumCulled = false; scene.add(fxFire); }
+  if (f.trail){ const n = 80, g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n*3), 3)); g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(n*3), 3));
+    fxTrail = new THREE.Points(g, glow(0xffffff, {size:.26, vertexColors:true})); fxTrail.frustumCulled = false; fxTrail.userData = {n, i:0, life:new Float32Array(n), last:ROOT.player.position.clone()}; scene.add(fxTrail); }
+}
+const fxC = new THREE.Color();
+function stepFx(dt, tt){
+  if (fxFire){ const a = fxFire.geometry.attributes.position.array;
+    fxFire.userData.seed.forEach((q,i) => { a[i*3] = q.x + Math.sin(tt*q.s + q.p)*1.4; a[i*3+1] = q.y + Math.sin(tt*q.s*1.9 + q.p)*.45; a[i*3+2] = q.z + Math.cos(tt*q.s*.8 + q.p)*1.4; });
+    fxFire.geometry.attributes.position.needsUpdate = true; fxFire.material.opacity = .6 + Math.sin(tt*2.4)*.3; }
+  if (fxTrail){ const u = fxTrail.userData, pa = fxTrail.geometry.attributes.position.array, ca = fxTrail.geometry.attributes.color.array, p = ROOT.player.position; fxC.set(S.spec.fx.trailColor);
+    if (S.phase === "play" && p.distanceTo(u.last) > .22){ u.last.copy(p); for (let k=0;k<2;k++){ const j = u.i++ % u.n; pa[j*3] = p.x + (Math.random()-.5)*.7; pa[j*3+1] = p.y + .3 + Math.random()*1.3; pa[j*3+2] = p.z + (Math.random()-.5)*.7; u.life[j] = 1; } }
+    for (let j=0;j<u.n;j++){ if (u.life[j] <= 0) continue; u.life[j] = Math.max(0, u.life[j] - dt*1.1); pa[j*3+1] += dt*.4; const l = u.life[j]; ca[j*3] = fxC.r*l; ca[j*3+1] = fxC.g*l; ca[j*3+2] = fxC.b*l; }
+    fxTrail.geometry.attributes.position.needsUpdate = true; fxTrail.geometry.attributes.color.needsUpdate = true; }
+  const sk = skel(), on = S.phase === "play" && game.carrying !== null && !!sk;
+  dropRing.visible = on; if (on){ dropRing.position.set(sk.x, .22, sk.z); dropRing.scale.setScalar(S.spec.rules.dropRadius); dropRing.material.color.set(S.spec.bones.beacon); dropRing.material.opacity = .35 + Math.sin(tt*4)*.2; }
+}
+function applyBehaviors(tt){
+  for (const b of S.spec.behaviors){ const p = targetObj(b.target), g = anchorGroup(b.target); if (!p || !g) continue;
+    if (b.type === "spin") g.rotation.y = p.rot*D2R + tt*b.speed*1.2;
+    else if (b.type === "float") g.position.y = p.y + .5 + Math.sin(tt*b.speed*2)*.5; }
+}
+
+/* ═════════════ Infinite canvas: the game is one big node; references and 3D assets are made around it ═════════════ */
+const worldEl = $("#world"), nodesEl = $("#nodes");
+const view = {x:0, y:0, z:1};
+let spaceDown = false, viewAnim = 0, tmpEdge = null;
+function applyView(){
+  worldEl.style.transform = `translate(${view.x}px,${view.y}px) scale(${view.z})`;
+  wrap.style.backgroundSize = `${22*view.z}px ${22*view.z}px`; wrap.style.backgroundPosition = `${view.x}px ${view.y}px`;
+  $("#zv").textContent = Math.round(view.z*100) + "%"; $("#vcard").hidden = true;
+}
+function animView(t){
+  const f = {x:view.x, y:view.y, z:view.z}, t0 = performance.now(), tok = ++viewAnim;
+  const step = now => { if (tok !== viewAnim) return; const k = clamp((now - t0)/420, 0, 1), e = 1 - Math.pow(1 - k, 3);
+    view.x = lerp(f.x, t.x, e); view.y = lerp(f.y, t.y, e); view.z = lerp(f.z, t.z, e); applyView(); if (k < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function zoomAt(sx, sy, nz){ viewAnim++; nz = clamp(nz, .12, 2.5); const wx = (sx - view.x)/view.z, wy = (sy - view.y)/view.z; view.z = nz; view.x = sx - wx*nz; view.y = sy - wy*nz; applyView(); }
+function toWorld(cx, cy){ const r = wrap.getBoundingClientRect(); return {x:(cx - r.left - view.x)/view.z, y:(cy - r.top - view.y)/view.z}; }
+function fitBox(b, pad, maxZ, instant){
+  const W = wrap.clientWidth, H = wrap.clientHeight - 64, bw = b.x1 - b.x0, bh = b.y1 - b.y0;
+  const z = clamp(Math.min((W - pad*2)/bw, (H - pad*2)/bh), .12, maxZ), t = {z, x:(W - bw*z)/2 - b.x0*z, y:(H - bh*z)/2 - b.y0*z + 4};
+  if (instant){ viewAnim++; Object.assign(view, t); applyView(); } else animView(t);
+}
+function gameBox(){ return {x0:S.gpos.x, y0:S.gpos.y, x1:S.gpos.x + gnode.offsetWidth, y1:S.gpos.y + gnode.offsetHeight}; }
+function allBox(){ const b = gameBox(); S.nodes.forEach(n => { b.x0 = Math.min(b.x0, n.x); b.y0 = Math.min(b.y0, n.y); b.x1 = Math.max(b.x1, n.x + n.el.offsetWidth); b.y1 = Math.max(b.y1, n.y + n.el.offsetHeight); }); return b; }
+function fitGame(instant){ fitBox(gameBox(), 20, 1.15, instant); }
+function fitAll(){ fitBox(allBox(), 48, 1, false); }
+function focusNode(n){
+  const z = Math.max(view.z, .85), W = wrap.clientWidth, H = wrap.clientHeight - 64;
+  animView({z, x:W/2 - (n.x + n.el.offsetWidth/2)*z, y:H/2 - (n.y + n.el.offsetHeight/2)*z});
+  n.el.classList.remove("flash"); void n.el.offsetWidth; n.el.classList.add("flash");
+}
+let lastSize = {w:wrap.clientWidth, h:wrap.clientHeight};
+new ResizeObserver(() => { const w = wrap.clientWidth, h = wrap.clientHeight; view.x += (w - lastSize.w)/2; view.y += (h - lastSize.h)/2; lastSize = {w, h}; applyView(); }).observe(wrap);
+
+/* pan: drag empty canvas, or hold Space and drag anywhere. Scroll pans; Cmd/Ctrl + scroll or pinch zooms */
+let pan = null;
+const isBg = t => t === wrap || t === worldEl || t === nodesEl || !!(t.closest && t.closest("#edges"));
+wrap.addEventListener("pointerdown", e => {
+  if (!e.target.closest("#addMenu,#addNodeBtn")) $("#addMenu").hidden = true;
+  if (e.button !== 0 && e.button !== 1) return;
+  if (!(isBg(e.target) || (spaceDown && e.target.closest("#world")))) return;
+  viewAnim++; pan = {sx:e.clientX, sy:e.clientY, x:view.x, y:view.y}; wrap.setPointerCapture(e.pointerId); wrap.classList.add("panning");
+  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+});
+wrap.addEventListener("pointermove", e => { if (!pan) return; view.x = pan.x + e.clientX - pan.sx; view.y = pan.y + e.clientY - pan.sy; applyView(); });
+const endPan = () => { pan = null; wrap.classList.remove("panning"); };
+wrap.addEventListener("pointerup", endPan); wrap.addEventListener("pointercancel", endPan);
+wrap.addEventListener("dblclick", e => { if (isBg(e.target) && S.phase === "play") openAddMenu(e.clientX, e.clientY, toWorld(e.clientX, e.clientY)); });
+wrap.addEventListener("wheel", e => {
+  if (!e.target.closest("#world") && e.target !== wrap) return;
+  e.preventDefault(); const r = wrap.getBoundingClientRect();
+  if (e.ctrlKey || e.metaKey) zoomAt(e.clientX - r.left, e.clientY - r.top, view.z*Math.exp(-e.deltaY*(Math.abs(e.deltaY) < 40 ? .012 : .0025)));
+  else { viewAnim++; view.x -= e.deltaX; view.y -= e.deltaY; applyView(); }
+}, {passive:false});
+addEventListener("keydown", e => { if (e.code === "Space" && !typing()){ e.preventDefault(); if (!spaceDown){ spaceDown = true; wrap.classList.add("space"); } } });
+addEventListener("keyup", e => { if (e.code === "Space"){ spaceDown = false; wrap.classList.remove("space"); } });
+addEventListener("blur", () => { spaceDown = false; wrap.classList.remove("space"); });
+const zc = () => ({x:wrap.clientWidth/2, y:(wrap.clientHeight - 64)/2});
+$("#zIn").onclick = () => { const c = zc(); zoomAt(c.x, c.y, view.z*1.25); };
+$("#zOut").onclick = () => { const c = zc(); zoomAt(c.x, c.y, view.z/1.25); };
+$("#zv").onclick = () => { const c = zc(); zoomAt(c.x, c.y, 1); };
+$("#zGame").onclick = () => fitGame(); $("#gFocus").onclick = () => fitGame(); $("#zAll").onclick = () => fitAll();
+
+/* drag a node by its header */
+function dragBy(handle, pos, onMove){
+  handle.addEventListener("pointerdown", e => {
+    if (e.button !== 0 || spaceDown || e.target.closest("button,input,textarea,.vtabs")) return;
+    const st = toWorld(e.clientX, e.clientY), p0 = {x:pos().x, y:pos().y}; handle.setPointerCapture(e.pointerId); handle.classList.add("dragging");
+    const mv = ev => { const w = toWorld(ev.clientX, ev.clientY); onMove(p0.x + w.x - st.x, p0.y + w.y - st.y); };
+    const up = () => { handle.removeEventListener("pointermove", mv); handle.removeEventListener("pointerup", up); handle.removeEventListener("pointercancel", up); handle.classList.remove("dragging"); };
+    handle.addEventListener("pointermove", mv); handle.addEventListener("pointerup", up); handle.addEventListener("pointercancel", up);
+  });
+}
+function placeGame(){ gnode.style.left = S.gpos.x + "px"; gnode.style.top = S.gpos.y + "px"; }
+dragBy($("#ghead"), () => S.gpos, (x, y) => { S.gpos = {x, y}; placeGame(); reflow(); drawEdges(); });
+
+/* edges */
+function portPos(id, side){
+  if (id === "game"){ const b = gameBox(); return {x:side === "in" ? b.x0 : b.x1, y:(b.y0 + b.y1)/2}; }
+  const n = S.nodes.find(q => q.id === id); if (!n) return null; const h = n.el.offsetHeight;
+  return {x:side === "in" ? n.x : n.x + n.el.offsetWidth, y:n.y + h/2};
+}
+const curve = (a, b) => { const dx = Math.max(50, Math.abs(b.x - a.x)*.5); return `M${a.x},${a.y} C${a.x + dx},${a.y} ${b.x - dx},${b.y} ${b.x},${b.y}`; };
+function drawEdges(){
+  const svg = document.getElementById("edges"); if (!svg) return;
+  svg.innerHTML = S.edges.map(e => { const a = portPos(e.from, "out"), b = portPos(e.to, "in"); if (!a || !b) return "";
+    return `<path d="${curve(a, b)}"/><text x="${(a.x + b.x)/2}" y="${(a.y + b.y)/2 - 9}" text-anchor="middle">${esc(e.label)}</text>`; }).join("")
+    + (tmpEdge ? `<path class="tmp" d="${curve(tmpEdge.a, tmpEdge.b)}"/>` : "");
+}
+function link(from, to, label){
+  if (to !== "game") S.edges = S.edges.filter(e => e.to !== to);
+  if (!S.edges.some(e => e.from === from && e.to === to)) S.edges.push({from, to, label});
+  drawEdges();
+}
+
+/* ═════════════ Versions: every batch of notes makes a new one; the game node shows one at a time ═════════════ */
+const curV = () => S.versions.find(v => v.id === S.cur);
+const hhmm = () => new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+function snap(){
+  try { const c = document.createElement("canvas"); c.width = 320; c.height = Math.round(320*canvas.height/Math.max(1, canvas.width));
+    c.getContext("2d").drawImage(canvas, 0, 0, c.width, c.height); return c.toDataURL("image/jpeg", .72); } catch(e){ return ""; }
+}
+function finishTweens(){ S.tweens.forEach(t => { setPath(t.key, t.path, t.to); S.dirty.add(dirtyKey(t.key, t.path)); }); S.tweens = []; }
+function newVersion(label, notes, parentSpec, parentThumb){
+  const parent = curV(); if (parent){ parent.spec = parentSpec; if (parentThumb) parent.thumb = parentThumb; }
+  const v = {id:nid("v"), n:S.versions.length + 1, label, notes:notes || [], parent:parent ? parent.id : null, spec:null, thumb:"", time:hhmm()};
+  S.versions.push(v); S.cur = v.id; setTimeout(() => { if (S.cur === v.id) v.thumb = snap(); }, 1700); paintVersions(); paintNotes(); return v;
+}
+function switchVersion(id, silent){
+  const v = S.versions.find(x => x.id === id), cur = curV(); if (!v || v === cur) return;
+  if (game.pre){ const sk = skel(); if (sk){ sk.params = clone(game.pre.params); sk.y = game.pre.y; } game.pre = null; }
+  finishTweens(); if (cur){ cur.spec = clone(S.spec); cur.thumb = snap(); }
+  S.spec = clone(v.spec); v.spec = null; S.cur = v.id; S.attach = null; markAll(); startRound();
+  paintVersions(); paintAll(); renderPanel(); updateBadge();
+  if (!silent) toast(`Playing <b>V${v.n}</b> · ${esc(v.label)}`, 1800);
+}
+function paintVersions(){
+  const box = $("#vtabs"), cv = curV();
+  box.innerHTML = S.versions.map(v => `<button class="vtab ${v.id === S.cur ? "on" : ""}" data-v="${v.id}" aria-pressed="${v.id === S.cur}">V${v.n}</button>`).join("")
+    + Array.from({length:S.pendingV}, (_, i) => `<span class="vtab ghost" title="Wana is making this version. Keep playing."><span class="sp"></span>V${S.versions.length + 1 + i}</span>`).join("");
+  box.querySelectorAll("[data-v]").forEach(b => { b.onclick = () => switchVersion(b.dataset.v); b.onmouseenter = () => showVerCard(b.dataset.v, b); b.onmouseleave = () => $("#vcard").hidden = true; });
+  $("#gmeta").innerHTML = cv ? `Playing <b>V${cv.n}</b> · ${esc(cv.label)}` : S.phase === "build" ? "Building…" : "Not built yet";
+  box.scrollLeft = 1e6;
+}
+function showVerCard(id, el){
+  const v = S.versions.find(x => x.id === id); if (!v) return; const c = $("#vcard"), r = el.getBoundingClientRect(), w = wrap.getBoundingClientRect();
+  const img = v.id === S.cur ? snap() : v.thumb, par = S.versions.find(x => x.id === v.parent);
+  c.innerHTML = (img ? `<img src="${img}" alt="">` : "") + `<b>V${v.n} · ${esc(v.label)}</b><div class="muted">${par ? `From V${par.n} · ` : ""}${esc(v.time)}${v.id === S.cur ? " · playing now" : " · click to play"}</div>`
+    + (v.notes.length ? `<ul>${v.notes.slice(0, 4).map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : "");
+  c.hidden = false; c.style.left = clamp(r.left - w.left, 8, w.width - 280) + "px"; c.style.top = (r.bottom - w.top + 8) + "px";
+}
+
+/* ═════════════ Generation nodes: reference images and 3D assets, made on the side while the game keeps running ═════════════ */
+const KIND = {
+  image:{tag:"Image", title:"Reference image", ph:"Describe a look, a place or a moment…", btn:"Generate 2 takes"},
+  asset:{tag:"3D asset", title:"3D asset", ph:"Describe a model to put in the game…", btn:"Generate"}};
+const shortTitle = s => { s = String(s).trim().replace(/[.。!！]+$/, ""); if (isZh(s)) return s.slice(0, 14); const w = s.split(/\s+/); return cap(w.slice(0, 5).join(" ")) + (w.length > 5 ? "…" : ""); };
+function createNode(kind, o){
+  o = o || {}; const n = {id:nid("nd"), kind, x:0, y:0, auto:!o.at, prompt:o.prompt || "", title:o.title || "", status:"idle", progress:0, results:[], pick:0, ref:null};
+  if (o.at){ n.x = o.at.x; n.y = o.at.y; }
+  const el = document.createElement("div"); el.className = "node gen k-" + kind; el.dataset.node = n.id; n.el = el;
+  el.innerHTML = `<div class="nhead"><span class="nkind">${KIND[kind].tag}</span><b class="ntitle"></b><button class="iconbtn" data-ndel aria-label="Delete this node">${ico("x", 13)}</button></div>`
+    + `<div class="nbody"><textarea class="nprompt" rows="3" placeholder="${KIND[kind].ph}" aria-label="${KIND[kind].title} prompt">${esc(n.prompt)}</textarea><div class="nslot"></div></div>`
+    + `<span class="port out" title="Drag onto the game${kind === "image" ? " or a 3D asset" : ""}"></span>${kind === "asset" ? `<span class="port in"></span>` : ""}`;
+  nodesEl.appendChild(el); S.nodes.push(n);
+  dragBy(el.querySelector(".nhead"), () => n, (x, y) => { n.x = x; n.y = y; n.auto = false; placeNode(n); reflow(); drawEdges(); });
+  el.querySelector("[data-ndel]").onclick = () => removeNode(n);
+  const ta = el.querySelector(".nprompt"); ta.addEventListener("input", () => n.prompt = ta.value);
+  ta.addEventListener("keydown", e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)){ e.preventDefault(); runNode(n); } });
+  bindPort(n, el.querySelector(".port.out")); placeNode(n); paintNode(n); return n;
+}
+function placeNode(n){ n.el.style.left = n.x + "px"; n.el.style.top = n.y + "px"; }
+function reflow(){ let y = S.gpos.y; S.nodes.filter(n => n.auto).forEach(n => { n.x = S.gpos.x - 390; n.y = y; placeNode(n); y += n.el.offsetHeight + 24; }); }
+function removeNode(n){
+  S.nodes = S.nodes.filter(q => q !== n); S.edges = S.edges.filter(e => e.from !== n.id && e.to !== n.id);
+  S.nodes.forEach(q => { if (q.ref === n.id){ q.ref = null; paintNode(q); } }); n.el.remove(); reflow(); drawEdges();
+}
+function paintNode(n){
+  const el = n.el, slot = el.querySelector(".nslot"), K = KIND[n.kind], refN = n.ref && S.nodes.find(q => q.id === n.ref);
+  el.querySelector(".ntitle").textContent = n.title || K.title; el.classList.toggle("running", n.status === "running");
+  let h = refN ? `<div class="nref">Colors from <b>${esc(refN.title || "the reference")}</b></div>` : "";
+  if (n.status === "running") h += `<div class="nprog"><i style="width:${Math.round(n.progress*100)}%"></i></div><div class="nacts"><span class="sp"></span><span class="nnote">Generating. Keep playing, it runs on its own.</span></div>`;
+  else if (n.status === "done"){
+    h += `<div class="nres ${n.kind === "asset" ? "one" : ""}">${n.results.map((r, i) => `<button class="nimg ${n.kind === "image" && i === n.pick ? "on" : ""}" data-pick="${i}" aria-label="${n.kind === "image" ? `Pick take ${i + 1}` : "Asset preview"}"><img src="${r.url}" alt=""></button>`).join("")}</div>`;
+    h += n.kind === "image" ? `<div class="nacts"><button class="btn sm primary" data-use>Use as game look</button><button class="btn sm" data-gen>Again</button></div>`
+      : `<div class="nmeta">${esc(n.results[0].asset.name)} · ${n.results[0].asset.parts.length} parts</div><div class="nacts"><button class="btn sm primary" data-use>Place in game</button><button class="btn sm" data-gen>Again</button></div>`;
+    h += `<div class="nhint">Or drag the dot on the right onto the game${n.kind === "image" ? " or onto a 3D asset" : ""}.</div>`;
+  } else h += `<div class="nacts"><button class="btn sm primary" data-gen>${K.btn}</button><span class="nnote">Runs on its own while you play</span></div>`;
+  slot.innerHTML = h;
+  slot.querySelector("[data-gen]")?.addEventListener("click", () => runNode(n));
+  slot.querySelector("[data-use]")?.addEventListener("click", () => useNode(n, "game"));
+  slot.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => { if (n.kind === "image"){ n.pick = +b.dataset.pick; paintNode(n); } });
+  el.querySelector(".nprompt").disabled = n.status === "running";
+  reflow(); drawEdges();
+}
+function fakeProgress(n){
+  return setInterval(() => { n.progress = Math.min(.94, n.progress + .03 + Math.random()*.05); const b = n.el.querySelector(".nprog i"); if (b) b.style.width = Math.round(n.progress*100) + "%"; }, 170);
+}
+async function runNode(n){
+  if (n.status === "running") return; const ta = n.el.querySelector(".nprompt"), prompt = ta.value.trim();
+  if (!prompt){ ta.focus({preventScroll:true}); toast("Describe what to make first."); return; }
+  n.prompt = prompt; n.status = "running"; n.progress = .04; n.title = shortTitle(prompt); paintNode(n);
+  const tick = fakeProgress(n), t0 = performance.now(), refN = n.ref && S.nodes.find(q => q.id === n.ref && q.status === "done"), refSpec = refN ? refN.results[refN.pick].spec : null;
+  let results = [];
+  try {
+    if (n.kind === "image"){ const specs = await refSpecs(prompt); results = specs.map((s, i) => ({spec:s, url:paintRef(s, seedOf(prompt) + i*97)})); n.title = specs[0].title || n.title; }
+    else { const a = await assetRecipe(prompt, refSpec); results = [{asset:a, url:assetThumb(a.parts)}]; n.title = a.name; }
+  } catch(e){ results = []; }
+  const wait = 2300 + Math.random()*1500 - (performance.now() - t0); if (wait > 0) await sleep(wait);
+  clearInterval(tick);
+  if (!results.length){ n.status = "idle"; paintNode(n); toast("That one didn't come out. Try again."); return; }
+  n.results = results; n.pick = 0; n.status = "done"; n.progress = 1; paintNode(n);
+  const t = toast(`<b>${esc(n.title)}</b> is ready on the canvas.<div class="row"><button class="btn sm" data-sh>Show</button></div>`, 4200);
+  t.querySelector("[data-sh]").onclick = () => { t.remove(); focusNode(n); };
+}
+function useNode(n, to){
+  if (n.status !== "done"){ toast("Generate it first, then connect it."); return; }
+  if (to === "game"){
+    if (S.phase !== "play"){ toast("Build the game first."); return; }
+    if (n.kind === "image"){ link(n.id, "game", "Look"); const it = addNote("global", null, undefined, `Match the look of “${n.title}”`, null, true); it.ref = Object.assign({title:n.title, prompt:n.prompt}, n.results[n.pick].spec); runNotes([it], "ref"); }
+    else { link(n.id, "game", "In game"); placeNodeAsset(n); }
+    return;
+  }
+  const t = S.nodes.find(q => q.id === to); if (!t) return; t.ref = n.id; link(n.id, t.id, "Colors"); paintNode(t);
+  toast(`<b>${esc(t.title || "The 3D asset")}</b> will take its colors from <b>${esc(n.title)}</b>.${t.status === "done" ? " Press Again to remake it." : ""}`, 3200);
+}
+function placeNodeAsset(n){
+  const a = n.results[0].asset, before = clone(S.spec), at = frontOfPlayer(8);
+  const p = sanitizeProp({id:"gen" + (++uid), name:a.name, role:"decor", type:"parts", x:at.x, z:at.z, color:a.color, parts:a.parts}, new Set(S.spec.props.map(q => q.id)));
+  S.spec.props.push(p); S.dirty.add("prop:" + p.id); setTimeout(() => popIn(propGroups.get(p.id)), 40); pushHistory(`Placed ${p.name}`, before, 1); paintNotes();
+  S.made.push({id:p.id, name:p.name, parts:p.parts.length, from:n.prompt}); paintTools();
+  toast(`<b>${esc(p.name)}</b> placed in front of the explorer, on <b>V${curV()?.n || 1}</b>.`, 2600);
+}
+function bindPort(n, port){
+  port.addEventListener("pointerdown", e => {
+    if (e.button !== 0) return; e.stopPropagation(); port.setPointerCapture(e.pointerId);
+    let tgt = null; const a = portPos(n.id, "out");
+    const clear = () => document.querySelectorAll(".node.droptarget").forEach(x => x.classList.remove("droptarget"));
+    const find = ev => { const el = document.elementFromPoint(ev.clientX, ev.clientY)?.closest(".node"); if (!el || el === n.el) return null;
+      if (el.id === "gnode") return "game"; const t = S.nodes.find(q => q.id === el.dataset.node); return n.kind === "image" && t && t.kind === "asset" ? t.id : null; };
+    const mv = ev => { tmpEdge = {a, b:toWorld(ev.clientX, ev.clientY)}; tgt = find(ev); clear(); if (tgt) (tgt === "game" ? gnode : S.nodes.find(q => q.id === tgt).el).classList.add("droptarget"); drawEdges(); };
+    const up = () => { port.removeEventListener("pointermove", mv); port.removeEventListener("pointerup", up); port.removeEventListener("pointercancel", up); tmpEdge = null; clear(); drawEdges(); if (tgt) useNode(n, tgt); };
+    port.addEventListener("pointermove", mv); port.addEventListener("pointerup", up); port.addEventListener("pointercancel", up);
+  });
+}
+function openAddMenu(cx, cy, at){
+  const m = $("#addMenu"), r = wrap.getBoundingClientRect(); m.hidden = false; m.dataset.at = JSON.stringify(at || null);
+  m.style.left = clamp(cx - r.left, 8, r.width - 260) + "px"; m.style.top = clamp(cy - r.top, 8, r.height - 140) + "px";
+}
+$("#addMenu").querySelectorAll("[data-add]").forEach(b => b.onclick = () => {
+  const m = $("#addMenu"), at = JSON.parse(m.dataset.at || "null"); m.hidden = true;
+  const n = createNode(b.dataset.add, at ? {at:{x:at.x - 150, y:at.y - 30}} : {}); if (!at) focusNode(n);
+  setTimeout(() => n.el.querySelector(".nprompt").focus({preventScroll:true}), 80);
+});
+$("#addNodeBtn").onclick = e => { const m = $("#addMenu"); if (!m.hidden){ m.hidden = true; return; } const r = e.currentTarget.getBoundingClientRect(); openAddMenu(r.left, r.top - 132, null); };
+
+/* reference images: Wana (or the offline rules) art-directs; a small painter draws the take */
+const MOTIFS = ["skeleton","pines","lights","crystal","snow","lantern"];
+function cleanRef(v, title){
+  return {title:String(title || "Reference").slice(0, 40), tod:num(v && v.tod, .3, 0, 1), fog:num(v && v.fog, .2, 0, 1), sky:col(v && v.sky, "#bfe3f2"), ground:col(v && v.ground, "#6f8a48"),
+    water:col(v && v.water, "#3f8fa8"), accent:col(v && v.accent, "#ffd27a"), motifs:(v && Array.isArray(v.motifs) ? v.motifs : []).map(String).filter(x => MOTIFS.includes(x))};
+}
+function refFromText(text, k){
+  const t = String(text).toLowerCase(), r = {title:shortTitle(text), sky:"#bfe3f2", ground:"#6f8a48", water:"#3f8fa8", accent:"#ffd27a", motifs:[]};
+  r.tod = /night|midnight|moon|star|夜|月|星/.test(t) ? .9 : /sunset|dusk|golden|evening|黄昏|日落|夕|傍晚/.test(t) ? .45 : /dawn|sunrise|morning|清晨|早晨|日出/.test(t) ? .25 : .08;
+  r.fog = /fog|mist|haze|雾|朦胧/.test(t) ? .55 : .14;
+  if (/snow|winter|ice|雪|冬|冰/.test(t)){ r.ground = "#e4ecf1"; r.water = "#6fa8c8"; r.motifs.push("snow"); }
+  else if (/desert|sand|dune|沙/.test(t)) r.ground = "#d6ae74";
+  else if (/autumn|fall|秋/.test(t)) r.ground = "#a8743a";
+  if (/lava|volcan|岩浆|火山/.test(t)) r.water = "#e0582a";
+  for (const [rx, hex] of COLORS) if (rx.test(t)){ if (/sky|天空/.test(t)) r.sky = hex; else r.accent = hex; break; }
+  if (/skelet|dino|bone|fossil|骨|恐龙|化石/.test(t)) r.motifs.push("skeleton");
+  if (!/desert|沙/.test(t)) r.motifs.push("pines");
+  if (/firefl|light|glow|spark|萤火|光|闪/.test(t)) r.motifs.push("lights");
+  if (/lantern|lamp|灯/.test(t)) r.motifs.push("lantern");
+  if (/crystal|gem|水晶|宝石/.test(t)) r.motifs.push("crystal");
+  if (k === 1){ r.tod = r.tod > .6 ? .74 : clamp(r.tod + .15, 0, 1); r.fog = clamp(r.fog + .22, 0, .9); }
+  return r;
+}
+async function refSpecs(prompt){
+  try {
+    const r = await askJSON(`You art-direct a reference image for a low-poly 3D game set around a lake. The person asks for: """${prompt}""". Give two clearly different takes. Reply with only JSON: {"title":"2-5 word title in the person's language","variants":[{"tod":0.45,"fog":0.3,"sky":"#hex daytime sky tint","ground":"#hex","water":"#hex","accent":"#hex light or highlight color","motifs":["skeleton","pines","lights","crystal","snow","lantern"]},{...}]}. tod: 0 = noon, 0.45 = sunset, 0.9 = night. fog 0-1. Only use the listed motifs.`, "quick");
+    if (r && Array.isArray(r.variants) && r.variants.length) return r.variants.slice(0, 2).map(v => cleanRef(v, r.title || shortTitle(prompt)));
+  } catch(e){}
+  return [refFromText(prompt, 0), refFromText(prompt, 1)];
+}
+function paintRef(r, seed){
+  const W = 480, H = 320, cv = document.createElement("canvas"); cv.width = W; cv.height = H; const g = cv.getContext("2d"), rnd = mulberry(seed);
+  const mix = (a, b, t) => "#" + new THREE.Color(a).lerp(new THREE.Color(b), clamp(t, 0, 1)).getHexString();
+  const rgba = (h, a) => { const c = new THREE.Color(h); return `rgba(${Math.round(c.r*255)},${Math.round(c.g*255)},${Math.round(c.b*255)},${a})`; };
+  const t = r.tod, night = clamp((t - .5)*2, 0, 1), warm = t < .5 ? t*2 : 1 - night, M = new Set(r.motifs), HZ = H*.6;
+  const hor = t < .5 ? mix(mix(r.sky, "#ffffff", .35), "#f6b48a", t*2) : mix("#f6b48a", "#2b3768", night);
+  const top = t < .5 ? mix(mix(r.sky, "#2f6fb0", .35), "#b8656b", t*1.8) : mix("#b8656b", "#0b1230", night);
+  let gr = g.createLinearGradient(0, 0, 0, HZ); gr.addColorStop(0, top); gr.addColorStop(1, hor); g.fillStyle = gr; g.fillRect(0, 0, W, HZ + 2);
+  if (night > .3) for (let i = 0; i < 80; i++){ g.fillStyle = `rgba(255,255,255,${((night - .3)*rnd()).toFixed(2)})`; g.fillRect(rnd()*W, rnd()*HZ*.8, 1.6, 1.6); }
+  const sx = W*(.22 + rnd()*.56), sy = lerp(H*.16, HZ*.8, warm*.85), sc = night > .5 ? "#e8eefc" : mix("#fff6d8", "#ffc27a", warm);
+  gr = g.createRadialGradient(sx, sy, 2, sx, sy, 95); gr.addColorStop(0, rgba(sc, .55)); gr.addColorStop(1, rgba(sc, 0)); g.fillStyle = gr; g.fillRect(0, 0, W, HZ);
+  g.fillStyle = sc; g.beginPath(); g.arc(sx, sy, night > .5 ? 13 : 17, 0, 6.3); g.fill();
+  [[.62, H*.34], [.38, H*.43]].forEach(([fade, peak]) => { g.fillStyle = mix(mix(r.ground, "#2c3a2a", .3), hor, fade + r.fog*.25); g.beginPath(); g.moveTo(0, HZ); let x = -20;
+    while (x < W){ const w = 50 + rnd()*90; g.lineTo(x + w/2, peak + rnd()*H*.12); g.lineTo(x + w, HZ - rnd()*10); x += w; } g.lineTo(W, HZ); g.closePath(); g.fill(); });
+  const gc = mix(r.ground, "#0d1410", night*.55); gr = g.createLinearGradient(0, HZ, 0, H); gr.addColorStop(0, mix(gc, hor, .25 + r.fog*.3)); gr.addColorStop(1, mix(gc, "#000000", .25));
+  g.fillStyle = gr; g.fillRect(0, HZ - 2, W, H - HZ + 2);
+  const lx = W*(.5 + (rnd() - .5)*.12), ly = H*.78, rx = W*.37, ry = H*.12, wc = mix(r.water, hor, .3);
+  g.fillStyle = mix(wc, "#000000", .12 + night*.3); g.beginPath(); g.ellipse(lx, ly, rx, ry, 0, 0, 6.3); g.fill();
+  g.strokeStyle = rgba(sc, .5); g.lineWidth = 2; for (let i = 0; i < 5; i++){ const yy = ly - ry*.55 + i*ry*.26, ww = 34 - i*5 + rnd()*16, cx = lerp(sx, lx, .45); g.beginPath(); g.moveTo(cx - ww, yy); g.lineTo(cx + ww, yy); g.stroke(); }
+  if (M.has("pines")){ const pc = mix(mix(r.ground, "#0f2a17", .55), hor, r.fog*.35 + night*.1);
+    for (let i = 0; i < 14; i++){ const x = i % 2 ? W*(.78 + rnd()*.24) : rnd()*W*.22, base = HZ + 4 + rnd()*H*.24, h = 34 + rnd()*46; g.fillStyle = pc;
+      for (let k = 0; k < 3; k++){ const yy = base - h*(.3 + k*.27), w = h*(.4 - k*.1); g.beginPath(); g.moveTo(x, yy - h*.32); g.lineTo(x - w, yy + h*.16); g.lineTo(x + w, yy + h*.16); g.closePath(); g.fill(); } } }
+  if (M.has("skeleton")){ const bc = mix("#f1ead8", hor, .12), cx = lx - 10, cy = ly - 4; g.strokeStyle = bc; g.fillStyle = bc; g.lineCap = "round";
+    g.lineWidth = 5; g.beginPath(); g.moveTo(cx - 70, cy); g.quadraticCurveTo(cx - 5, cy - 42, cx + 55, cy - 8); g.stroke();
+    g.lineWidth = 3.2; for (let i = 0; i < 6; i++){ const x = cx - 46 + i*16, y = cy - 27 + Math.abs(i - 2.5)*3; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 15, y + 15, x + 4, y + 30); g.stroke(); }
+    g.lineWidth = 4; g.beginPath(); g.moveTo(cx + 55, cy - 8); g.quadraticCurveTo(cx + 82, cy - 40, cx + 92, cy - 64); g.stroke();
+    g.beginPath(); g.ellipse(cx + 104, cy - 67, 17, 8, -.3, 0, 6.3); g.fill(); g.fillRect(cx + 108, cy - 68, 24, 6);
+    g.lineWidth = 3; g.beginPath(); g.moveTo(cx - 70, cy); g.quadraticCurveTo(cx - 112, cy + 2, cx - 132, cy - 20); g.stroke();
+    g.save(); g.beginPath(); g.ellipse(lx, ly, rx, ry, 0, 0, 6.3); g.clip(); g.fillStyle = rgba(mix(wc, "#000000", .1 + night*.3), .62); g.fillRect(lx - rx, cy + 3, rx*2, ry*2); g.restore(); }
+  if (M.has("crystal")) for (let i = 0; i < 4; i++){ const x = W*(.12 + rnd()*.76), y = HZ + 20 + rnd()*30, h = 18 + rnd()*22; g.fillStyle = mix(r.accent, "#ffffff", .2*i % .6);
+    g.beginPath(); g.moveTo(x, y - h); g.lineTo(x + 7, y); g.lineTo(x, y + 4); g.lineTo(x - 7, y); g.closePath(); g.fill(); }
+  if (M.has("lantern")){ const x = W*.24, y = H*.9; g.fillStyle = "#3a2a1c"; g.fillRect(x - 2, y - 70, 4, 70); g.fillRect(x - 2, y - 70, 18, 3);
+    gr = g.createRadialGradient(x + 15, y - 60, 1, x + 15, y - 60, 40); gr.addColorStop(0, rgba(r.accent, .9)); gr.addColorStop(1, rgba(r.accent, 0)); g.fillStyle = gr; g.fillRect(x - 30, y - 100, 90, 80); }
+  if (M.has("lights")) for (let i = 0; i < 34; i++){ const x = rnd()*W, y = HZ - 40 + rnd()*H*.38, s = 4 + rnd()*7; gr = g.createRadialGradient(x, y, 0, x, y, s); gr.addColorStop(0, rgba(r.accent, .95)); gr.addColorStop(1, rgba(r.accent, 0)); g.fillStyle = gr; g.fillRect(x - s, y - s, s*2, s*2); }
+  if (M.has("snow")) for (let i = 0; i < 60; i++){ g.fillStyle = "rgba(255,255,255,.75)"; g.beginPath(); g.arc(rnd()*W, rnd()*H, 1 + rnd()*1.6, 0, 6.3); g.fill(); }
+  if (r.fog > .05){ gr = g.createLinearGradient(0, HZ - 60, 0, HZ + 55); gr.addColorStop(0, rgba(hor, 0)); gr.addColorStop(.5, rgba(hor, Math.min(.85, r.fog*.8))); gr.addColorStop(1, rgba(hor, 0));
+    g.fillStyle = gr; g.fillRect(0, HZ - 60, W, 115); g.fillStyle = rgba(hor, r.fog*.16); g.fillRect(0, 0, W, H); }
+  gr = g.createRadialGradient(W/2, H/2, H*.35, W/2, H/2, W*.7); gr.addColorStop(0, "rgba(0,0,0,0)"); gr.addColorStop(1, "rgba(0,0,0,.28)"); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  return cv.toDataURL("image/jpeg", .86);
+}
+
+/* 3D assets: Claude designs parts live; offline, a few ready recipes stand in */
+const CRYSTALS = () => [P("base","rock",0,.2,0,1.2,.5,1,"#8a8f96"), P("crystal","gem",0,1,0,.5,1.6,.5,"#7fd6ff",{a:1}), P("crystal","gem",.45,.75,.2,.36,1.1,.36,"#7fd6ff",{a:1,rz:-18}),
+  P("crystal","gem",-.4,.7,-.1,.32,1,.32,"#9fe3ff",{a:1,rz:20}), P("crystal","gem",.1,.55,-.45,.26,.7,.26,"#7fd6ff",{a:1,rx:-20})];
+const RECIPES = [
+  {rx:/lantern|lamp|light|灯/, name:"Shore lantern", parts:() => [P("base","rock",0,.12,0,.7,.28,.7,"#8a8f96"), P("post","cylinder",0,1.25,0,.16,2.4,.16,"#5c3a22"), P("arm","box",.32,2.3,0,.75,.1,.1,"#5c3a22"),
+    P("frame","cylinder",.66,1.62,0,.42,.06,.42,"#3a3f46"), P("glow","sphere",.66,1.92,0,.36,.46,.36,"#ffd27a",{a:1}), P("roof","cone",.66,2.26,0,.5,.28,.5,"#3a3f46")]},
+  {rx:/boat|canoe|raft|ship|船|筏/, name:"Rowboat", parts:() => [P("hull","box",0,.28,0,1.2,.34,2.6,"#8b5a2b"), P("side","box",-.62,.52,0,.12,.34,2.6,"#7a4a22"), P("side","box",.62,.52,0,.12,.34,2.6,"#7a4a22"),
+    P("bow","box",0,.52,1.3,1.3,.34,.12,"#7a4a22"), P("stern","box",0,.52,-1.3,1.3,.34,.12,"#7a4a22"), P("seat","box",0,.6,.2,1.16,.08,.36,"#a8743a"), P("oar","cylinder",.75,.75,.1,.07,2.4,.07,"#c9a66b",{rx:72,rz:18}), P("lamp","sphere",0,.92,-1,.24,.24,.24,"#ffd27a",{a:1})]},
+  {rx:/mushroom|toadstool|蘑菇/, name:"Glow mushrooms", parts:() => [P("stem","cylinder",0,.55,0,.38,1.1,.38,"#efe6d6"), P("cap","sphere",0,1.15,0,1.5,.7,1.5,"#d6453a",{a:1}), P("spot","sphere",.38,1.42,.2,.22,.1,.22,"#ffffff"),
+    P("spot","sphere",-.3,1.4,-.25,.2,.1,.2,"#ffffff"), P("stem","cylinder",.85,.25,.4,.18,.5,.18,"#efe6d6"), P("cap","sphere",.85,.52,.4,.6,.3,.6,"#d6453a",{a:1}), P("stem","cylinder",-.7,.2,.5,.15,.4,.15,"#efe6d6"), P("cap","sphere",-.7,.42,.5,.48,.24,.48,"#d6453a",{a:1})]},
+  {rx:/sign|arrow|路牌|指示|牌子/, name:"Signpost", parts:() => [P("post","cylinder",0,1.05,0,.15,2.1,.15,"#6b4a2f"), P("board","box",.35,1.7,0,1.1,.3,.08,"#c9a66b",{a:1}), P("board","box",-.3,1.25,0,1,.28,.08,"#b8925a",{ry:28}), P("stone","rock",0,.12,0,.6,.26,.6,"#8a8f96")]},
+  {rx:/totem|statue|idol|图腾|雕像/, name:"Lake totem", parts:() => [P("base","box",0,.4,0,.9,.8,.9,"#6b4a2f"), P("body","cylinder",0,1.15,0,.78,.7,.78,"#a8743a"), P("eye","box",-.17,1.25,.39,.14,.14,.05,"#2a2622"), P("eye","box",.17,1.25,.39,.14,.14,.05,"#2a2622"),
+    P("head","box",0,1.75,0,1.2,.5,.55,"#c9a66b"), P("wing","box",-.8,1.8,0,.5,.18,.3,"#a8743a",{rz:20}), P("wing","box",.8,1.8,0,.5,.18,.3,"#a8743a",{rz:-20}), P("gem","gem",0,2.35,0,.42,.62,.42,"#7fd6ff",{a:1})]},
+  {rx:/egg|nest|蛋|窝/, name:"Dino egg nest", parts:() => [P("nest","torus",0,.18,0,2.6,2.6,1.6,"#8a6a3a",{rx:90}), P("straw","cylinder",0,.06,0,1.7,.12,1.7,"#a8843f"), P("egg","sphere",0,.6,0,.7,.95,.7,"#efe6d6"),
+    P("egg","sphere",.45,.48,.25,.55,.75,.55,"#e8dcc0"), P("egg","sphere",-.4,.45,-.2,.5,.7,.5,"#efe6d6"), P("spot","sphere",.18,.8,.3,.14,.14,.06,"#6f8a48",{a:1}), P("spot","sphere",-.12,.55,.33,.12,.12,.06,"#6f8a48",{a:1})]},
+  {rx:/bone|skull|fossil|骨|化石/, name:"Bone pile", parts:() => [P("bone","cylinder",0,.15,0,.14,1.4,.14,"#f3ead6",{rz:90,ry:20}), P("knob","sphere",.66,.15,.24,.26,.26,.26,"#f3ead6"), P("knob","sphere",-.66,.15,-.24,.26,.26,.26,"#f3ead6"),
+    P("bone","cylinder",.2,.35,.3,.12,1.1,.12,"#e8dcc0",{rz:80,ry:-40}), P("skull","box",-.3,.3,.5,.6,.36,.42,"#f3ead6",{ry:30,a:1}), P("rib","torus",.45,.32,-.4,1,1,1,"#e8dcc0",{ry:60})]},
+  {rx:/house|hut|cabin|屋|房/, name:"Fisher's hut", parts:() => [P("walls","box",0,.8,0,2,1.6,1.8,"#efe6d6"), P("roof","cone",0,2.2,0,1.9,1.2,1.9,"#b5523b",{ry:45,a:1}), P("door","box",0,.5,.91,.5,1,.05,"#6b4a2f"),
+    P("window","box",.6,1,.91,.35,.35,.05,"#ffd27a"), P("chimney","box",.55,2.4,-.3,.25,.6,.25,"#8a8f96")]},
+  {rx:/tent|帐篷/, name:"Tent", parts:() => clone(TENT)},
+  {rx:/campfire|fire|火/, name:"Campfire", parts:() => clone(CAMP)},
+  {rx:/crystal|gem|水晶|宝石/, name:"Crystal cluster", parts:CRYSTALS},
+  {rx:/[\s\S]*/, name:"", parts:CRYSTALS}
+];
+async function assetRecipe(prompt, ref){
+  try {
+    const r = await askJSON(`You design one small low-poly 3D asset for a game scene built from simple shapes. The person asks for: """${prompt}""".${ref ? ` Take colors from this reference palette where they fit: accent ${ref.accent}, ground ${ref.ground}, water ${ref.water}, sky ${ref.sky}.` : ""} Reply with only JSON: {"name":"short name","color":"#hex","parts":[{"name":"...","shape":"box|sphere|cylinder|cone|torus|gem|rock","x":0,"y":0.5,"z":0,"sx":1,"sy":1,"sz":1,"rx":0,"ry":0,"rz":0,"color":"#hex"}]}. Use 6-20 parts, about 1-4 m tall, sitting on the ground at y=0, x/y/z relative to the asset origin, sx/sy/sz full sizes in meters, rotations in degrees.`, "default");
+    if (r && Array.isArray(r.parts) && r.parts.length){ const p = sanitizeProp({type:"parts", color:r.color, parts:r.parts}); return {name:String(r.name || shortTitle(prompt)).slice(0, 40), color:p.color, parts:p.parts}; }
+  } catch(e){}
+  const t = String(prompt).toLowerCase(), R = RECIPES.find(x => x.rx.test(t));
+  let tint = null; for (const [rx, hex] of COLORS) if (rx.test(t)){ tint = hex; break; } if (!tint && ref) tint = ref.accent;
+  const parts = R.parts().map(q => { const o = Object.assign({}, q); if (o.a && tint) o.color = tint; delete o.a; return o; });
+  const p = sanitizeProp({type:"parts", color:parts[0].color, parts}); return {name:R.name || shortTitle(prompt), color:p.color, parts:p.parts};
+}
+let thumbR = null; const tScene = new THREE.Scene(), tCam = new THREE.PerspectiveCamera(32, 4/3, .1, 200);
+tScene.add(new THREE.HemisphereLight(0xffffff, 0x6a7380, 1)); { const l = new THREE.DirectionalLight(0xffffff, .8); l.position.set(3, 6, 5); tScene.add(l); }
+function assetThumb(parts){
+  if (!thumbR){ thumbR = new THREE.WebGLRenderer({antialias:true, alpha:true, preserveDrawingBuffer:true}); thumbR.setPixelRatio(1); thumbR.setSize(400, 300, false); thumbR.setClearColor(0x000000, 0); }
+  const g = new THREE.Group(); parts.forEach(p => g.add(partMesh(p))); g.rotation.y = -.55; tScene.add(g); g.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(g), c = box.getCenter(V()), s = box.getSize(V()), r = Math.max(s.x, s.y, s.z)*.5 + .01;
+  tCam.position.copy(c).add(V(.75, .55, 1.25).normalize().multiplyScalar(r*3.9)); tCam.lookAt(c); thumbR.render(tScene, tCam);
+  const url = thumbR.domElement.toDataURL("image/png"); tScene.remove(g); dispose(g); return url;
+}
+
+/* ═════════════ Boot ═════════════ */
+setChat(false); markAll(); handleDirty(); propGroups.forEach(g => g.visible = false); ROOT.player.visible = false; ROOT.bones.visible = false;
+paintAll(); paintHud(); placeGame(); layoutFrame(); fitGame(true); lastSize = {w:wrap.clientWidth, h:wrap.clientHeight}; paintVersions();
+requestAnimationFrame(t => { clock = t; frame(t); });
+})();
+</script>
+
+</body>
+</html>
